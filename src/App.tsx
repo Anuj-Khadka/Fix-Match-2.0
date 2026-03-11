@@ -6,6 +6,14 @@ import { Login } from "./pages/Login";
 import { SignUp } from "./pages/SignUp";
 import { PendingApproval } from "./pages/PendingApproval";
 import { Dashboard } from "./pages/Dashboard";
+import { ProviderDashboard } from "./pages/ProviderDashboard";
+
+/** Picks the right dashboard based on the user's role */
+function RoleDashboard() {
+  const { role } = useAuth();
+  if (role === "provider") return <ProviderDashboard />;
+  return <Dashboard />;
+}
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -34,7 +42,7 @@ function AppRoutes() {
             allowedRoles={["client", "provider", "admin"]}
             requireApprovedProvider
           >
-            <Dashboard />
+            <RoleDashboard />
           </ProtectedRoute>
         }
       />
