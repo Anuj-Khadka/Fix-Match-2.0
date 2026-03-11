@@ -18,6 +18,8 @@ export function Dashboard() {
     null,
   );
 
+  console.log(user,role)
+
   // ── Searching State ──────────────────────────────────────────
   if (jobs.activeJob) {
     return (
