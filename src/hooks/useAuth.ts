@@ -48,7 +48,19 @@ export function useAuth(): AuthState {
       return;
     }
 
-    const userRole = (session.user.app_metadata?.role as Role) ?? "client";
+    // Prefer JWT app_metadata, but if missing fall back to the profiles table
+    let userRole = session.user.app_metadata?.role as Role | undefined;
+
+    if (!userRole) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      userRole = (data?.role as Role) ?? "client";
+    }
+
     setRole(userRole);
 
     // If provider, fetch their approval status
