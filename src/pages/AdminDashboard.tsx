@@ -66,7 +66,7 @@ interface Job {
 
 function roleBadge(role: string) {
   const colors: Record<string, string> = {
-    client: "bg-blue-100 text-blue-700",
+    client: "bg-orange-100 text-orange-700",
     provider: "bg-emerald-100 text-emerald-700",
     admin: "bg-red-100 text-red-700",
   };
@@ -85,7 +85,7 @@ function statusBadge(status: string) {
     pending_review: "bg-amber-100 text-amber-700",
     approved: "bg-emerald-100 text-emerald-700",
     rejected: "bg-red-100 text-red-700",
-    searching: "bg-blue-100 text-blue-700",
+    searching: "bg-orange-100 text-orange-700",
     accepted: "bg-amber-100 text-amber-700",
     completed: "bg-emerald-100 text-emerald-700",
     cancelled: "bg-gray-100 text-gray-600",
@@ -241,7 +241,7 @@ function OverviewTab() {
     { label: "Total Providers", value: stats.totalProviders, color: "text-emerald-600" },
     { label: "Pending Review", value: stats.pendingProviders, color: "text-amber-600" },
     { label: "Total Jobs", value: stats.totalJobs, color: "text-cobalt" },
-    { label: "Active Jobs", value: stats.activeJobs, color: "text-blue-600" },
+    { label: "Active Jobs", value: stats.activeJobs, color: "text-cobalt" },
     { label: "Completed Jobs", value: stats.completedJobs, color: "text-emerald-600" },
   ];
 

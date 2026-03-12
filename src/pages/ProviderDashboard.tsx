@@ -41,7 +41,7 @@ export function ProviderDashboard() {
       {/* ── Main Content ──────────────────────────────── */}
       <main className="mx-auto max-w-5xl px-6 py-10">
         {/* Welcome Banner */}
-        <div className="rounded-2xl bg-gradient-to-r from-cobalt to-blue-600 p-8 text-white shadow-lg shadow-cobalt/20">
+        <div className="rounded-2xl bg-gradient-to-r from-cobalt to-orange-600 p-8 text-white shadow-lg shadow-cobalt/20">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
               <Star size={24} className="text-white" />
@@ -50,7 +50,7 @@ export function ProviderDashboard() {
               <h1 className="text-2xl font-bold">
                 Welcome to Fixmatch
               </h1>
-              <p className="mt-1 text-blue-100">
+              <p className="mt-1 text-orange-100">
                 Your service is valued here.
               </p>
             </div>
@@ -165,7 +165,7 @@ const CATEGORIES = [
     title: "Plumbing",
     subtitle: "Pipes, faucets, drains",
     icon: Wrench,
-    bg: "bg-blue-50",
+    bg: "bg-orange-50",
     iconColor: "text-cobalt",
   },
   {

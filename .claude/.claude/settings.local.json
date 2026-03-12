@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(node node_modules/typescript/bin/tsc --noEmit)",
-      "Bash(cmd /c \"cd C:\\\\Users\\\\AKhadka2\\\\Desktop\\\\service_app && node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit 2>&1\")"
+      "Bash(cmd /c \"cd C:\\\\Users\\\\AKhadka2\\\\Desktop\\\\service_app && node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit 2>&1\")",
+      "WebFetch(domain:repairly.webflow.io)",
+      "WebSearch",
+      "WebFetch(domain:assets-global.website-files.com)",
+      "WebFetch(domain:cdn.prod.website-files.com)",
+      "WebFetch(domain:webflow.com)"
     ]
   }
 }

@@ -2,8 +2,8 @@
 
 /* ── Theme tokens ───────────────────────────────────────────── */
 @theme {
-  --color-cobalt: #0052FF;
-  --color-cobalt-dark: #0043D1;
+  --color-cobalt: #FF6B35;
+  --color-cobalt-dark: #E55120;
   --color-navy: #1A1F36;
   --color-navy-light: #252B48;
   --font-family-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;

@@ -32,7 +32,7 @@ const CATEGORIES: {
   color: string;
   bg: string;
 }[] = [
-  { value: "plumbing",    label: "Plumbing",   desc: "Pipes & fixtures",  Icon: Wrench,        color: "text-blue-600",   bg: "bg-blue-50"   },
+  { value: "plumbing",    label: "Plumbing",   desc: "Pipes & fixtures",  Icon: Wrench,        color: "text-cobalt",     bg: "bg-orange-50" },
   { value: "electrical",  label: "Electrical", desc: "Wiring & panels",   Icon: Zap,           color: "text-yellow-500", bg: "bg-yellow-50" },
   { value: "cleaning",    label: "Cleaning",   desc: "Home & office",     Icon: Sparkles,      color: "text-emerald-600",bg: "bg-emerald-50"},
   { value: "more",        label: "More",       desc: "Coming soon",       Icon: MoreHorizontal,color: "text-gray-400",   bg: "bg-gray-100"  },
@@ -163,10 +163,10 @@ export function Dashboard() {
       {/* ════════════════════════════════════════════════════════════
           HERO  (same gradient + blobs as landing page)
       ════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#f0f5ff] via-white to-[#f8fafc] pt-32 pb-20 md:pt-44 md:pb-32">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#fff7f3] via-white to-[#fafaf8] pt-32 pb-20 md:pt-44 md:pb-32">
         {/* Decorative blobs */}
         <div className="pointer-events-none absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-cobalt/5 blur-3xl" />
-        <div className="pointer-events-none absolute -right-32 top-20 h-[400px] w-[400px] rounded-full bg-blue-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-32 top-20 h-[400px] w-[400px] rounded-full bg-orange-200/30 blur-3xl" />
 
         <div className="relative mx-auto max-w-7xl px-6 text-center">
           {/* Badge */}
@@ -180,7 +180,7 @@ export function Dashboard() {
             style={{ animation: "fade-in-up 0.7s ease-out both" }}
           >
             Professional Help,{" "}
-            <span className="bg-gradient-to-r from-cobalt to-blue-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cobalt to-orange-400 bg-clip-text text-transparent">
               at Your Door
             </span>{" "}
             in Minutes.
@@ -347,7 +347,7 @@ export function Dashboard() {
                 >
                   <path
                     d="M0,7 C20,1 40,9 60,4 C80,-1 100,8 120,5"
-                    stroke="#0052FF"
+                    stroke="#FF6B35"
                     strokeWidth="3"
                     strokeLinecap="round"
                   />

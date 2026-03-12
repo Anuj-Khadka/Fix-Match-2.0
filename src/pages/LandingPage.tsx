@@ -122,10 +122,10 @@ export function LandingPage() {
       </nav>
 
       {/* ─── Hero ────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#f0f5ff] via-white to-[#f8fafc] pt-32 pb-20 md:pt-44 md:pb-32">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#fff7f3] via-white to-[#fafaf8] pt-32 pb-20 md:pt-44 md:pb-32">
         {/* Decorative blobs */}
         <div className="pointer-events-none absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-cobalt/5 blur-3xl" />
-        <div className="pointer-events-none absolute -right-32 top-20 h-[400px] w-[400px] rounded-full bg-blue-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-32 top-20 h-[400px] w-[400px] rounded-full bg-orange-200/30 blur-3xl" />
 
         <div className="relative mx-auto max-w-7xl px-6 text-center">
           <div
@@ -139,7 +139,7 @@ export function LandingPage() {
             style={{ animation: "fade-in-up 0.7s ease-out both" }}
           >
             Professional Help,{" "}
-            <span className="bg-gradient-to-r from-cobalt to-blue-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cobalt to-orange-400 bg-clip-text text-transparent">
               at Your Door
             </span>{" "}
             in Minutes.
@@ -315,12 +315,12 @@ export function LandingPage() {
       </section>
 
       {/* ─── Become a Pro CTA Banner ─────────────────────────── */}
-      <section className="bg-gradient-to-r from-cobalt to-blue-600 py-16 md:py-20">
+      <section className="bg-gradient-to-r from-cobalt to-orange-600 py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-6 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Got skills? Earn on your own schedule.
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-blue-100">
+          <p className="mx-auto mt-4 max-w-xl text-orange-100">
             Join thousands of verified pros on Fixmatch. Set your own hours,
             keep more of what you earn, and get matched instantly.
           </p>
@@ -401,7 +401,7 @@ const SERVICES = [
     title: "Plumbing",
     description: "Leaky faucets, clogged drains, pipe repairs — handled within the hour.",
     icon: Wrench,
-    bg: "bg-blue-50",
+    bg: "bg-orange-50",
     iconColor: "text-cobalt",
   },
   {
