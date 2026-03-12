@@ -14,7 +14,7 @@ export function ProtectedRoute({
   allowedRoles,
   requireApprovedProvider = false,
 }: Props) {
-  const { user, role, isApprovedProvider, loading } = useAuth();
+  const { user, role, isApprovedProvider, needsOnboarding, loading } = useAuth();
 
   if (loading) {
     return <div>Loading...</div>;
@@ -32,6 +32,9 @@ export function ProtectedRoute({
 
   // Provider must be approved
   if (requireApprovedProvider && role === "provider" && !isApprovedProvider) {
+    if (needsOnboarding) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <Navigate to="/pending-approval" replace />;
   }
 

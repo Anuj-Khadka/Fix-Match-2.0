@@ -1,11 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Clock, XCircle } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 
 export function PendingApproval() {
-  const { providerStatus } = useAuth();
+  const { providerStatus, needsOnboarding } = useAuth();
   const isRejected = providerStatus === "rejected";
+
+  // If still in onboarding, redirect there instead
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f9fafb] px-4 font-sans">
