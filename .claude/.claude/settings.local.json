@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(cmd /c \"cd C:\\\\Users\\\\AKhadka2\\\\Desktop\\\\service_app && node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit 2>&1\")"
+    ]
+  }
+}

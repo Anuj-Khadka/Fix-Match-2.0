@@ -194,6 +194,35 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Trusted By ──────────────────────────────────────── */}
+      <section className="bg-white border-y border-gray-100 py-12">
+        <div className="mx-auto max-w-7xl px-6">
+          <p className="text-center text-sm font-medium text-gray-400 mb-8 tracking-wide">
+            Trusted by 500+ local businesses across the city
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            {TRUSTED_BUSINESSES.map((biz) => (
+              <div
+                key={biz.name}
+                className="flex items-center gap-2.5 bg-[#f0faf0] rounded-2xl px-6 py-4 select-none"
+              >
+                <span className="text-lg">{biz.emoji}</span>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-[13px] font-black tracking-tight text-gray-900 uppercase">
+                    {biz.name}
+                  </span>
+                  {biz.tagline && (
+                    <span className="text-[9px] font-semibold tracking-widest text-gray-400 uppercase">
+                      {biz.tagline}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── Bento Service Grid ──────────────────────────────── */}
       <section id="services" className="bg-[#f9fafb] py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-6">
@@ -414,6 +443,15 @@ const STEPS = [
     description: "Only pay when the job is marked complete and you're satisfied with the work.",
     icon: CreditCard,
   },
+];
+
+const TRUSTED_BUSINESSES = [
+  { name: "Rivera Plumbing",    tagline: "Est. 2004",       emoji: "🔧" },
+  { name: "Volt Pro",           tagline: "Electric Co.",    emoji: "⚡" },
+  { name: "Sparkle Clean",      tagline: "Home Services",   emoji: "✨" },
+  { name: "BuildRight",         tagline: "Contractors",     emoji: "🏗️" },
+  { name: "PipeWorks",          tagline: "Plumbing & HVAC", emoji: "💧" },
+  { name: "HomeFix Co.",        tagline: "Repairs & More",  emoji: "🏠" },
 ];
 
 const FOOTER_LINKS = [
