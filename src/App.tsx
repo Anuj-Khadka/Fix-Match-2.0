@@ -11,6 +11,7 @@ import { ProviderOnboarding } from "./pages/ProviderOnboarding";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminSetup } from "./pages/AdminSetup";
 
+
 /** Picks the right dashboard based on the user's role */
 function RoleDashboard() {
   const { role } = useAuth();
@@ -21,7 +22,7 @@ function RoleDashboard() {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-  console.log(user,loading  )
+  console.log(user, loading )
 
   if (loading) {
     return (
@@ -44,6 +45,7 @@ function AppRoutes() {
       {/* Auth-gated */}
       <Route path="/onboarding" element={<ProviderOnboarding />} />
       <Route path="/pending-approval" element={<PendingApproval />} />
+
       <Route
         path="/admin"
         element={
@@ -52,6 +54,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/dashboard"
         element={
@@ -63,6 +66,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
     </Routes>
   );
 }

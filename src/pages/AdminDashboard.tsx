@@ -12,6 +12,7 @@ import {
   Shield,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 
@@ -124,6 +125,18 @@ function Sidebar({
   active: Tab;
   onSelect: (t: Tab) => void;
 }) {
+  const navigate = useNavigate();
+
+  async function adminSignOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("adminSignOut error:", error);
+      return;
+    }
+
+    navigate("/", { replace: true });
+  }
+
   return (
     <aside className="flex w-56 flex-col border-r border-gray-200 bg-white">
       <div className="px-5 py-5">
@@ -159,7 +172,7 @@ function Sidebar({
 
       <div className="border-t border-gray-200 p-3">
         <button
-          onClick={() => supabase.auth.signOut()}
+          onClick={adminSignOut}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 cursor-pointer border-none"
         >
           <LogOut className="h-4.5 w-4.5" />
@@ -276,14 +289,15 @@ function ProviderReviewTab() {
     setLoading(true);
     let query = supabase
       .from("provider_profiles")
-      .select("*, profiles(full_name, phone)")
+      .select("*, profiles!provider_profiles_id_fkey(full_name, phone)")
       .order("created_at", { ascending: false });
 
     if (filter !== "all") {
       query = query.eq("status", filter);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) console.error("loadProviders error:", error);
     setProviders((data as ProviderProfile[]) ?? []);
     setLoading(false);
   }

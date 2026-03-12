@@ -389,12 +389,14 @@ function Step4({
   onSubmit,
   onBack,
   saving,
+  isResubmit,
 }: {
   data: ProviderData;
   onChange: (d: Partial<ProviderData>) => void;
   onSubmit: () => void;
   onBack: () => void;
   saving: boolean;
+  isResubmit?: boolean;
 }) {
   const { user } = useAuth();
   const [error, setError] = useState("");
@@ -535,7 +537,7 @@ function Step4({
           disabled={saving || uploading}
           className="flex items-center gap-2 rounded-xl bg-cobalt px-6 py-3 text-sm font-semibold text-white transition hover:bg-cobalt-dark disabled:opacity-50 cursor-pointer border-none"
         >
-          {saving ? "Submitting..." : "Submit Application"}
+          {saving ? "Submitting..." : isResubmit ? "Resubmit Application" : "Submit Application"}
         </button>
       </div>
     </form>
@@ -573,7 +575,8 @@ function OnboardingComplete() {
 /* ------------------------------------------------------------------ */
 
 export function ProviderOnboarding() {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, providerStatus } = useAuth();
+  const isResubmitting = providerStatus === "rejected";
   const [step, setStep] = useState(0);
   const [data, setData] = useState<ProviderData>(EMPTY_DATA);
   const [saving, setSaving] = useState(false);
@@ -587,13 +590,15 @@ export function ProviderOnboarding() {
     supabase
       .from("provider_profiles")
       .select(
-        "business_name, years_of_experience, bio, service_categories, service_radius, base_rate, id_document_url, license_document_url, onboarding_step"
+        "business_name, years_of_experience, bio, service_categories, service_radius, base_rate, id_document_url, license_document_url, onboarding_step, status"
       )
       .eq("id", user.id)
       .single()
       .then(({ data: row }) => {
         if (row) {
-          setStep(row.onboarding_step ?? 0);
+          // Rejected providers restart from step 0 so they can review & fix everything
+          const startStep = row.status === "rejected" ? 0 : (row.onboarding_step ?? 0);
+          setStep(startStep);
           setData({
             business_name: row.business_name ?? "",
             years_of_experience: row.years_of_experience ?? 0,
@@ -620,7 +625,7 @@ export function ProviderOnboarding() {
 
     const { error: dbError } = await supabase
       .from("provider_profiles")
-      .update({ ...fields, onboarding_step: nextStep })
+      .upsert({ id: user.id, ...fields, onboarding_step: nextStep })
       .eq("id", user.id);
 
     setSaving(false);
@@ -639,6 +644,10 @@ export function ProviderOnboarding() {
         license_document_url: data.license_document_url,
         onboarding_step: 4,
         status: "pending_review",
+        // Clear any previous rejection so the admin sees a clean resubmission
+        rejection_reason: null,
+        reviewed_by: null,
+        reviewed_at: null,
       },
       4
     );
@@ -671,6 +680,14 @@ export function ProviderOnboarding() {
             </div>
           )}
 
+          {/* Resubmission notice */}
+          {isResubmitting && step < 4 && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <span className="font-semibold">Editing resubmission.</span> Your previous application
+              was denied. Review and fix your information, then resubmit for approval.
+            </div>
+          )}
+
           {/* Step card */}
           <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
             {error && (
@@ -680,7 +697,7 @@ export function ProviderOnboarding() {
             {step === 0 && <Step1 data={data} onChange={updateData} onNext={() => saveStep({ business_name: data.business_name, years_of_experience: data.years_of_experience, bio: data.bio }, 1)} />}
             {step === 1 && <Step2 data={data} onChange={updateData} onNext={() => saveStep({ service_categories: data.service_categories }, 2)} onBack={() => setStep(0)} />}
             {step === 2 && <Step3 data={data} onChange={updateData} onNext={() => saveStep({ service_radius: data.service_radius, base_rate: Number(data.base_rate) }, 3)} onBack={() => setStep(1)} />}
-            {step === 3 && <Step4 data={data} onChange={updateData} onSubmit={handleFinalSubmit} onBack={() => setStep(2)} saving={saving} />}
+            {step === 3 && <Step4 data={data} onChange={updateData} onSubmit={handleFinalSubmit} onBack={() => setStep(2)} saving={saving} isResubmit={isResubmitting} />}
             {step >= 4 && <OnboardingComplete />}
           </div>
         </div>
