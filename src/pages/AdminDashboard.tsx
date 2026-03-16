@@ -12,7 +12,7 @@ import {
   Shield,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 
@@ -140,9 +140,9 @@ function Sidebar({
   return (
     <aside className="flex w-56 flex-col border-r border-gray-200 bg-white">
       <div className="px-5 py-5">
-        <span className="text-xl font-extrabold tracking-tight text-cobalt">
+        <Link to="/" className="text-xl font-extrabold tracking-tight text-cobalt no-underline">
           fix<span className="text-gray-900">match</span>
-        </span>
+        </Link>
         <div className="mt-1 flex items-center gap-1.5">
           <Shield className="h-3.5 w-3.5 text-red-500" />
           <span className="text-xs font-medium text-red-500">Admin</span>

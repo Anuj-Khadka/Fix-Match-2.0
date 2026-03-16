@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 import {
@@ -18,9 +19,9 @@ export function ProviderDashboard() {
       {/* ── Top Bar ───────────────────────────────────── */}
       <nav className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="text-xl font-extrabold tracking-tight text-cobalt">
+          <Link to="/" className="text-xl font-extrabold tracking-tight text-cobalt no-underline">
             fix<span className="text-gray-900">match</span>
-          </span>
+          </Link>
           <div className="flex items-center gap-4">
             <span className="hidden text-sm text-gray-500 sm:inline">
               {user?.email}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Wrench,
   Zap,
@@ -92,9 +93,9 @@ export function Dashboard() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
 
           {/* Logo */}
-          <span className="text-2xl font-extrabold tracking-tight text-cobalt select-none">
+          <Link to="/" className="text-2xl font-extrabold tracking-tight text-cobalt select-none no-underline">
             fix<span className="text-gray-900">match</span>
-          </span>
+          </Link>
 
           {/* Desktop nav links */}
           <div className="hidden items-center gap-6 md:flex">

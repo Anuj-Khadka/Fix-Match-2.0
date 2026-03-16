@@ -22,7 +22,6 @@ function RoleDashboard() {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-  console.log(user, loading )
 
   if (loading) {
     return (

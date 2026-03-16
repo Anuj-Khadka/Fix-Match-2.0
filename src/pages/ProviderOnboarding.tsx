@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   User,
   Briefcase,
@@ -23,6 +23,8 @@ import { useAuth } from "../hooks/useAuth";
 
 interface ProviderData {
   business_name: string;
+  phone: string;
+  address: string;
   years_of_experience: number;
   bio: string;
   service_categories: string[];
@@ -34,6 +36,8 @@ interface ProviderData {
 
 const EMPTY_DATA: ProviderData = {
   business_name: "",
+  phone: "",
+  address: "",
   years_of_experience: 0,
   bio: "",
   service_categories: [],
@@ -128,6 +132,14 @@ function Step1({
       setError("Business name is required.");
       return;
     }
+    if (!data.phone.trim()) {
+      setError("Phone number is required.");
+      return;
+    }
+    if (!data.address.trim()) {
+      setError("Business address is required.");
+      return;
+    }
     setError("");
     onNext();
   }
@@ -149,6 +161,34 @@ function Step1({
           value={data.business_name}
           onChange={(e) => onChange({ business_name: e.target.value })}
           placeholder="e.g. Smith Plumbing Services"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+          Phone Number <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="phone"
+          type="tel"
+          value={data.phone}
+          onChange={(e) => onChange({ phone: e.target.value })}
+          placeholder="e.g. (555) 123-4567"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+          Business Address <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="address"
+          type="text"
+          value={data.address}
+          onChange={(e) => onChange({ address: e.target.value })}
+          placeholder="e.g. 123 Main St, Denver, CO 80202"
           className={inputClass}
         />
       </div>
@@ -590,7 +630,7 @@ export function ProviderOnboarding() {
     supabase
       .from("provider_profiles")
       .select(
-        "business_name, years_of_experience, bio, service_categories, service_radius, base_rate, id_document_url, license_document_url, onboarding_step, status"
+        "business_name, phone, address, years_of_experience, bio, service_categories, service_radius, base_rate, id_document_url, license_document_url, onboarding_step, status"
       )
       .eq("id", user.id)
       .single()
@@ -601,6 +641,8 @@ export function ProviderOnboarding() {
           setStep(startStep);
           setData({
             business_name: row.business_name ?? "",
+            phone: row.phone ?? "",
+            address: row.address ?? "",
             years_of_experience: row.years_of_experience ?? 0,
             bio: row.bio ?? "",
             service_categories: row.service_categories ?? [],
@@ -666,9 +708,9 @@ export function ProviderOnboarding() {
     <div className="flex min-h-screen flex-col bg-[#f9fafb] font-sans">
       {/* Header */}
       <header className="border-b border-gray-200 bg-white px-6 py-4">
-        <span className="text-2xl font-extrabold tracking-tight text-cobalt">
+        <Link to="/" className="text-2xl font-extrabold tracking-tight text-cobalt no-underline">
           fix<span className="text-gray-900">match</span>
-        </span>
+        </Link>
       </header>
 
       <main className="flex flex-1 items-start justify-center px-4 py-10">
@@ -694,7 +736,7 @@ export function ProviderOnboarding() {
               <p className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</p>
             )}
 
-            {step === 0 && <Step1 data={data} onChange={updateData} onNext={() => saveStep({ business_name: data.business_name, years_of_experience: data.years_of_experience, bio: data.bio }, 1)} />}
+            {step === 0 && <Step1 data={data} onChange={updateData} onNext={() => saveStep({ business_name: data.business_name, phone: data.phone, address: data.address, years_of_experience: data.years_of_experience, bio: data.bio }, 1)} />}
             {step === 1 && <Step2 data={data} onChange={updateData} onNext={() => saveStep({ service_categories: data.service_categories }, 2)} onBack={() => setStep(0)} />}
             {step === 2 && <Step3 data={data} onChange={updateData} onNext={() => saveStep({ service_radius: data.service_radius, base_rate: Number(data.base_rate) }, 3)} onBack={() => setStep(1)} />}
             {step === 3 && <Step4 data={data} onChange={updateData} onSubmit={handleFinalSubmit} onBack={() => setStep(2)} saving={saving} isResubmit={isResubmitting} />}

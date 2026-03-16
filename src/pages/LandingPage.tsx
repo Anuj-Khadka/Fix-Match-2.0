@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Wrench,
   Zap,
@@ -10,6 +10,10 @@ import {
   ShieldCheck,
   CreditCard,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Smile,
   Twitter,
   Instagram,
   Linkedin,
@@ -27,6 +31,7 @@ export function LandingPage() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [testimonialIdx, setTestimonialIdx] = useState(0);
 
   function handleCTA() {
     if (user) {
@@ -47,12 +52,9 @@ export function LandingPage() {
       <nav className="fixed top-0 z-50 w-full border-b border-white/20 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           {/* Logo */}
-          <button
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="text-2xl font-extrabold tracking-tight text-cobalt cursor-pointer bg-transparent border-none"
-          >
+          <Link to="/" className="text-2xl font-extrabold tracking-tight text-cobalt no-underline">
             fix<span className="text-gray-900">match</span>
-          </button>
+          </Link>
 
           {/* Desktop Links */}
           <div className="hidden items-center gap-8 md:flex">
@@ -314,6 +316,112 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Testimonials + Stats Bento ──────────────────────── */}
+      <section className="bg-[#f9fafb] py-20 md:py-28">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+            {/* Left — heading + testimonial card */}
+            <div>
+              <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-[2.75rem]">
+                Check out what our{" "}
+                <span className="underline decoration-cobalt/40 decoration-[3px] underline-offset-4">
+                  clients have to say
+                </span>{" "}
+                about their time with us!
+              </h2>
+
+              {/* Testimonial card */}
+              <div className="mt-10 rounded-2xl bg-[#fdf2f0] p-8">
+                <span className="text-4xl font-serif leading-none text-cobalt/60">&ldquo;</span>
+                <p className="mt-2 text-[15px] leading-relaxed text-gray-700">
+                  {TESTIMONIALS[testimonialIdx].quote}
+                </p>
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={TESTIMONIALS[testimonialIdx].avatar}
+                      alt={TESTIMONIALS[testimonialIdx].name}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {TESTIMONIALS[testimonialIdx].name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {TESTIMONIALS[testimonialIdx].title}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        setTestimonialIdx((prev) =>
+                          prev === 0 ? TESTIMONIALS.length - 1 : prev - 1
+                        )
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-600 transition hover:border-cobalt hover:text-cobalt cursor-pointer"
+                      aria-label="Previous testimonial"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button
+                      onClick={() =>
+                        setTestimonialIdx((prev) =>
+                          prev === TESTIMONIALS.length - 1 ? 0 : prev + 1
+                        )
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-600 transition hover:border-cobalt hover:text-cobalt cursor-pointer"
+                      aria-label="Next testimonial"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right — bento grid (3 cols, 2 rows) */}
+            <div className="grid grid-cols-3 grid-rows-2 gap-4 h-[420px]">
+              {/* Worker on ladder — spans 2 rows, first col */}
+              <div className="row-span-2 overflow-hidden rounded-2xl">
+                <img
+                  src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&h=800&fit=crop"
+                  alt="Professional at work"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              {/* 4.9 Trustpilot — bottom-left of the right 2×2 */}
+              <div className="flex flex-col items-start justify-center rounded-2xl bg-white p-6 shadow-sm">
+                <Star size={28} className="fill-emerald-500 text-emerald-500" />
+                <p className="mt-3 text-4xl font-extrabold tracking-tight text-gray-900">
+                  4.9
+                </p>
+                <p className="mt-1 text-sm text-gray-500">Trustpilot reviews</p>
+              </div>
+
+              {/* 25K+ stat card */}
+              <div className="flex flex-col items-start justify-center rounded-2xl bg-white p-6 shadow-sm">
+                <Smile size={28} className="text-emerald-400" />
+                <p className="mt-3 text-4xl font-extrabold tracking-tight text-gray-900">
+                  25K+
+                </p>
+                <p className="mt-1 text-sm text-gray-500">Happy clients</p>
+              </div>
+
+              {/* Drill worker photo — spans bottom-right 2 cols */}
+              <div className="col-span-2 overflow-hidden rounded-2xl">
+                <img
+                  src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800&h=400&fit=crop"
+                  alt="Worker with power tools"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── Become a Pro CTA Banner ─────────────────────────── */}
       <section className="bg-gradient-to-r from-cobalt to-orange-600 py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-6 text-center">
@@ -452,6 +560,30 @@ const TRUSTED_BUSINESSES = [
   { name: "BuildRight",         tagline: "Contractors",     emoji: "🏗️" },
   { name: "PipeWorks",          tagline: "Plumbing & HVAC", emoji: "💧" },
   { name: "HomeFix Co.",        tagline: "Repairs & More",  emoji: "🏠" },
+];
+
+const TESTIMONIALS = [
+  {
+    quote:
+      "Working with Fixmatch has been amazing. Professional, responsive team with great results. Highly recommend! Their expertise, dedication, and friendly service make them shine. We'll definitely come back for more future projects and support.",
+    name: "Everett Harris",
+    title: "CEO of Elson",
+    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+  },
+  {
+    quote:
+      "Found a licensed electrician within minutes of posting. The whole process was seamless — from matching to payment. Fixmatch is our go-to for every home repair now.",
+    name: "Maria Gonzalez",
+    title: "Homeowner",
+    avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+  },
+  {
+    quote:
+      "As a property manager with 30+ units, Fixmatch has saved me countless hours. Reliable pros, transparent pricing, and instant booking. Can't imagine going back to the old way.",
+    name: "James Whitfield",
+    title: "Property Manager",
+    avatar: "https://randomuser.me/api/portraits/men/65.jpg",
+  },
 ];
 
 const FOOTER_LINKS = [

@@ -45,10 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function handleSession(session: Session | null) {
-    setSession(session);
-    setUser(session?.user ?? null);
-
     if (!session?.user) {
+      setSession(null);
+      setUser(null);
       setRole(null);
       setProviderStatus(null);
       setOnboardingStep(0);
@@ -56,7 +55,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Check app_metadata first, then user_metadata, then fall back to profiles table
+    // Keep loading=true while we resolve the role.
+    // This prevents ProtectedRoute / RoleDashboard from rendering
+    // with a stale or null role before the async work finishes.
+    setLoading(true);
+
+    setSession(session);
+    setUser(session.user);
+
+    // 1. Resolve role: JWT app_metadata → user_metadata → profiles table
     let userRole = (session.user.app_metadata?.role ??
       session.user.user_metadata?.role) as Role | undefined;
 
@@ -70,9 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRole = (data?.role as Role) ?? "client";
     }
 
-    setRole(userRole);
+    // 2. If provider, fetch approval status + onboarding step
+    let status: ProviderStatus = null;
+    let step = 0;
 
-    // If provider, fetch their approval status and onboarding step
     if (userRole === "provider") {
       const { data } = await supabase
         .from("provider_profiles")
@@ -80,13 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("id", session.user.id)
         .single();
 
-      setProviderStatus((data?.status as ProviderStatus) ?? null);
-      setOnboardingStep(data?.onboarding_step ?? 0);
-    } else {
-      setProviderStatus(null);
-      setOnboardingStep(0);
+      status = (data?.status as ProviderStatus) ?? null;
+      step = data?.onboarding_step ?? 0;
     }
 
+    // 3. Batch all state updates so React renders once
+    //    with the complete, consistent auth state.
+    setRole(userRole);
+    setProviderStatus(status);
+    setOnboardingStep(step);
     setLoading(false);
   }
 
