@@ -8,7 +8,6 @@ import {
   LogOut,
   Wallet,
   Settings,
-  MapPin,
   Loader2,
   ArrowRight,
   Clock,
@@ -20,6 +19,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useJobs, type JobCategory } from "../hooks/useJobs";
 import { supabase } from "../lib/supabase";
+import { BookingPanel, type BookingData } from "../components/booking/BookingPanel";
 
 /* ------------------------------------------------------------------ */
 /*  Category config                                                     */
@@ -48,39 +48,80 @@ export function Dashboard() {
   const { requestPosition, loading: geoLoading, error: geoError } = useGeolocation();
   const jobs = useJobs(user?.id);
 
-  const [selectedCategory, setSelectedCategory] = useState<JobCategory | null>(null);
-  const [address, setAddress] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  /* ── Handlers ─────────────────────────────────────────────────── */
-  async function handleFindPro() {
-    if (!selectedCategory) return;
-    try {
-      const coords = await requestPosition();
-      // Reverse-geocode to show the address to the user
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`)
-        .then((r) => r.json())
-        .then((d) => {
-          const a = d.address ?? {};
-          const street = [a.house_number, a.road].filter(Boolean).join(" ");
-          const city   = a.city ?? a.town ?? a.village ?? "";
-          setAddress([street, city].filter(Boolean).join(", ") || "Current Location");
-        })
-        .catch(() => setAddress("Current Location"));
-      await jobs.createJob({ category: selectedCategory, ...coords });
-    } catch {
-      // errors surfaced via geoError / jobs.error
-    }
-  }
+  const [bookingStep, setBookingStep] = useState(0);
+  const [bookingData, setBookingData] = useState<BookingData>({
+    category: null,
+    description: "",
+    images: [],
+    imagePreviews: [],
+    lat: null,
+    lng: null,
+    address: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSignOut = () => {
     setDropdownOpen(false);
     supabase.auth.signOut();
   };
 
+  /* ── Submit job with image uploads ── */
+  const handleSubmitJob = async () => {
+    if (!user || !bookingData.category || !bookingData.lat || !bookingData.lng) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      // 1. Upload images to job-images bucket
+      const imageUrls: string[] = [];
+      const jobId = crypto.randomUUID();
+
+      for (const file of bookingData.images) {
+        const path = `${user.id}/${jobId}/${file.name}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("job-images")
+          .upload(path, file);
+
+        if (uploadErr) throw new Error(`Image upload failed: ${uploadErr.message}`);
+
+        const { data: urlData } = supabase.storage
+          .from("job-images")
+          .getPublicUrl(path);
+        imageUrls.push(urlData.publicUrl);
+      }
+
+      // 2. Create the job
+      await jobs.createJob({
+        category: bookingData.category,
+        lat: bookingData.lat,
+        lng: bookingData.lng,
+        description: bookingData.description || undefined,
+        images: imageUrls,
+      });
+
+      // 3. Reset funnel
+      setBookingStep(0);
+      setBookingData({
+        category: null,
+        description: "",
+        images: [],
+        imagePreviews: [],
+        lat: null,
+        lng: null,
+        address: "",
+      });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const userInitial = (user?.email?.[0] ?? "U").toUpperCase();
-  const isSearching  = !!jobs.activeJob;
-  const isBusy       = geoLoading || jobs.loading;
+  const activeJob = jobs.activeJob;
+  const activeStatus = activeJob?.status;
 
   /* ── Render ───────────────────────────────────────────────────── */
   return (
@@ -162,41 +203,60 @@ export function Dashboard() {
       </nav>
 
       {/* ════════════════════════════════════════════════════════════
-          HERO  (same gradient + blobs as landing page)
+          HERO + BOOKING FUNNEL
       ════════════════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#fff7f3] via-white to-[#fafaf8] pt-32 pb-20 md:pt-44 md:pb-32">
         {/* Decorative blobs */}
         <div className="pointer-events-none absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-cobalt/5 blur-3xl" />
         <div className="pointer-events-none absolute -right-32 top-20 h-[400px] w-[400px] rounded-full bg-orange-200/30 blur-3xl" />
 
-        <div className="relative mx-auto max-w-7xl px-6 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full bg-cobalt/10 px-4 py-1.5 text-xs font-semibold text-cobalt mb-6">
-            <Zap size={14} /> Now live in your city
+        <div className="relative mx-auto max-w-7xl px-6">
+          {/* Headline */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-cobalt/10 px-4 py-1.5 text-xs font-semibold text-cobalt mb-6">
+              <Zap size={14} /> Now live in your city
+            </div>
+
+            <h1
+              className="mx-auto max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+              style={{ animation: "fade-in-up 0.7s ease-out both" }}
+            >
+              Professional Help,{" "}
+              <span className="bg-gradient-to-r from-cobalt to-orange-400 bg-clip-text text-transparent">
+                at Your Door
+              </span>{" "}
+              in Minutes.
+            </h1>
+
+            <p
+              className="mx-auto mt-6 max-w-2xl text-lg text-gray-500 sm:text-xl"
+              style={{ animation: "fade-in-up 0.7s ease-out 0.15s both" }}
+            >
+              The first direct-connect marketplace for plumbing, electrical, and
+              home repair. No agencies, no waiting.
+            </p>
           </div>
 
-          {/* Headline */}
-          <h1
-            className="mx-auto max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
-            style={{ animation: "fade-in-up 0.7s ease-out both" }}
-          >
-            Professional Help,{" "}
-            <span className="bg-gradient-to-r from-cobalt to-orange-400 bg-clip-text text-transparent">
-              at Your Door
-            </span>{" "}
-            in Minutes.
-          </h1>
+          {/* Active Job Banner */}
+          {activeJob && activeStatus === "matched" && (
+            <div
+              className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-emerald-200 shadow-xl shadow-emerald-500/10 p-5 flex items-center gap-4 text-left"
+              style={{ animation: "fade-in-up 0.4s ease-out both" }}
+            >
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <ShieldCheck size={24} className="text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900">Pro Found!</p>
+                <p className="text-sm text-gray-500 mt-0.5 capitalize">
+                  {activeJob.category}&nbsp;·&nbsp;
+                  <span className="text-emerald-600 font-semibold">Matched</span>
+                </p>
+              </div>
+            </div>
+          )}
 
-          <p
-            className="mx-auto mt-6 max-w-2xl text-lg text-gray-500 sm:text-xl"
-            style={{ animation: "fade-in-up 0.7s ease-out 0.15s both" }}
-          >
-            The first direct-connect marketplace for plumbing, electrical, and
-            home repair. No agencies, no waiting.
-          </p>
-
-          {/* ── Active Job Banner ── */}
-          {isSearching && (
+          {activeJob && (activeStatus === "searching" || activeStatus === "accepted") && (
             <div
               className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-cobalt/20 shadow-xl shadow-cobalt/10 p-5 flex items-center gap-4 text-left"
               style={{ animation: "fade-in-up 0.4s ease-out both" }}
@@ -209,11 +269,8 @@ export function Dashboard() {
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900">Searching for nearby Pros…</p>
                 <p className="text-sm text-gray-500 mt-0.5 capitalize">
-                  {jobs.activeJob!.category}&nbsp;·&nbsp;
-                  <span className={jobs.activeJob!.status === "accepted" ? "text-green-600 font-semibold" : "text-orange-500 font-semibold"}>
-                    {jobs.activeJob!.status}
-                  </span>
-                  {address && <span className="ml-2 text-gray-400">· {address}</span>}
+                  {activeJob.category}&nbsp;·&nbsp;
+                  <span className="text-orange-500 font-semibold">{activeJob.status}</span>
                 </p>
               </div>
               <button
@@ -226,85 +283,25 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* ── Service Selector ── */}
-          {!isSearching && (
+          {/* Booking Funnel Panel */}
+          {!activeJob && (
             <div
-              className="mx-auto mt-10 max-w-xl"
+              className="mx-auto mt-10 flex justify-center"
               style={{ animation: "fade-in-up 0.7s ease-out 0.3s both" }}
             >
-              {/* Address indicator (after geo resolves) */}
-              {address && (
-                <div className="flex items-center justify-center gap-1.5 mb-4 text-sm text-gray-500">
-                  <MapPin size={14} className="text-cobalt" />
-                  <span>{address}</span>
-                </div>
-              )}
-
-              {/* 2×2 category cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-                {CATEGORIES.map(({ value, label, desc, Icon, color, bg }) => {
-                  const isMore = value === "more";
-                  const active = !isMore && selectedCategory === value;
-                  return (
-                    <button
-                      key={value}
-                      onClick={() =>
-                        !isMore &&
-                        setSelectedCategory((v) => (v === value ? null : (value as JobCategory)))
-                      }
-                      disabled={isMore}
-                      className={`
-                        flex flex-col items-center gap-2.5 rounded-2xl border-2 py-5 px-3
-                        transition-all duration-150 cursor-pointer bg-white
-                        ${isMore ? "opacity-40 cursor-not-allowed border-gray-100" : ""}
-                        ${!isMore && active
-                          ? "border-cobalt bg-cobalt/5 shadow-lg shadow-cobalt/10 scale-[.97]"
-                          : !isMore
-                          ? "border-gray-200 hover:border-cobalt/40 hover:shadow-md hover:-translate-y-0.5"
-                          : ""}
-                      `}
-                    >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${active ? "bg-cobalt" : bg}`}>
-                        <Icon size={19} className={active ? "text-white" : color} />
-                      </div>
-                      <div className="text-center">
-                        <p className={`text-sm font-semibold leading-none ${active ? "text-cobalt" : "text-gray-800"}`}>
-                          {label}
-                        </p>
-                        <p className="text-[11px] text-gray-400 mt-0.5">{desc}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Errors */}
-              {(geoError || jobs.error) && (
-                <p className="text-sm text-red-600 mb-4 bg-red-50 rounded-xl px-4 py-2.5 border border-red-100">
-                  {geoError || jobs.error}
-                </p>
-              )}
-
-              {/* Find a Pro CTA */}
-              <button
-                onClick={handleFindPro}
-                disabled={!selectedCategory || isBusy}
-                className="
-                  w-full flex items-center justify-center gap-2
-                  rounded-2xl bg-cobalt py-4 text-base font-semibold text-white
-                  shadow-lg shadow-cobalt/25 transition
-                  hover:bg-cobalt-dark hover:scale-[1.02] active:scale-[.98]
-                  disabled:opacity-40 cursor-pointer border-none
-                "
-              >
-                {geoLoading ? (
-                  <><Loader2 size={18} className="animate-spin" /> Getting your location…</>
-                ) : jobs.loading ? (
-                  <><Loader2 size={18} className="animate-spin" /> Creating request…</>
-                ) : (
-                  <>Find a Pro <ArrowRight size={18} /></>
-                )}
-              </button>
+              <BookingPanel
+                step={bookingStep}
+                setStep={setBookingStep}
+                data={bookingData}
+                setData={setBookingData}
+                categories={CATEGORIES}
+                requestPosition={requestPosition}
+                geoLoading={geoLoading}
+                geoError={geoError}
+                onSubmit={handleSubmitJob}
+                submitting={submitting}
+                submitError={submitError}
+              />
             </div>
           )}
 
@@ -338,7 +335,6 @@ export function Dashboard() {
               Find the right{" "}
               <span className="relative inline-block">
                 Service
-                {/* Wavy cobalt underline */}
                 <svg
                   className="absolute -bottom-2 left-0 w-full"
                   height="10"
@@ -371,7 +367,8 @@ export function Dashboard() {
                 onClick={
                   s.bookable
                     ? () => {
-                        setSelectedCategory(s.value as JobCategory);
+                        setBookingData((d) => ({ ...d, category: s.value as JobCategory }));
+                        setBookingStep(2);
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }
                     : undefined
@@ -379,14 +376,10 @@ export function Dashboard() {
                 className={`group flex flex-col rounded-2xl bg-[#f4f4f4] overflow-hidden text-left transition-all
                   ${s.bookable ? "cursor-pointer hover:shadow-xl hover:scale-[1.01] active:scale-[.99]" : "cursor-default"}`}
               >
-                {/* Card title row */}
                 <div className="flex items-center justify-between px-5 py-4">
                   <h3 className="font-semibold text-[15px] text-gray-900">{s.title}</h3>
                   {s.featured ? (
-                    <ArrowRight
-                      size={17}
-                      className="text-cobalt -rotate-45 shrink-0"
-                    />
+                    <ArrowRight size={17} className="text-cobalt -rotate-45 shrink-0" />
                   ) : (
                     <ArrowRight
                       size={17}
@@ -395,7 +388,6 @@ export function Dashboard() {
                   )}
                 </div>
 
-                {/* Photo */}
                 <div className="relative mx-3 mb-3 rounded-xl overflow-hidden h-48">
                   <img
                     src={s.image}
@@ -403,7 +395,6 @@ export function Dashboard() {
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
 
-                  {/* Optional badge */}
                   {s.badge && (
                     <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-gray-900/75 backdrop-blur-sm rounded-full px-3 py-1.5">
                       <span className="text-[11px] font-semibold text-green-400">
@@ -417,7 +408,6 @@ export function Dashboard() {
                     </div>
                   )}
 
-                  {/* Coming soon pill */}
                   {!s.bookable && (
                     <div className="absolute top-3 right-3 bg-gray-900/60 backdrop-blur-sm rounded-full px-2.5 py-1">
                       <span className="text-[10px] font-semibold text-white tracking-wide uppercase">

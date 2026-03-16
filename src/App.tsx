@@ -10,13 +10,15 @@ import { ProviderDashboard } from "./pages/ProviderDashboard";
 import { ProviderOnboarding } from "./pages/ProviderOnboarding";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminSetup } from "./pages/AdminSetup";
+import { NotFound } from "./pages/NotFound";
+import { JobListener } from "./components/provider/JobListener";
 
 
 /** Picks the right dashboard based on the user's role */
 function RoleDashboard() {
   const { role } = useAuth();
   if (role === "admin") return <Navigate to="/admin" replace />;
-  if (role === "provider") return <ProviderDashboard />;
+  if (role === "provider") return <JobListener><ProviderDashboard /></JobListener>;
   return <Dashboard />;
 }
 
@@ -66,6 +68,8 @@ function AppRoutes() {
         }
       />
 
+      {/* Catch-all */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

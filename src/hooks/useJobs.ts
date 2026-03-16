@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export type JobCategory = "plumbing" | "electrical" | "cleaning";
-export type JobStatus = "searching" | "accepted" | "completed" | "cancelled";
+export type JobStatus = "searching" | "accepted" | "matched" | "completed" | "cancelled" | "expired";
 
 export interface Job {
   id: string;
@@ -12,6 +12,7 @@ export interface Job {
   category: JobCategory;
   status: JobStatus;
   description: string | null;
+  images?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ interface UseJobsReturn {
     lat: number;
     lng: number;
     description?: string;
+    images?: string[];
   }) => Promise<void>;
   cancelJob: () => Promise<void>;
 }
@@ -43,7 +45,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
         .from("jobs")
         .select("*")
         .eq("client_id", userId)
-        .in("status", ["searching", "accepted"])
+        .in("status", ["searching", "accepted", "matched"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -72,7 +74,8 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
           const updated = payload.new as unknown as Job;
           if (
             updated.status === "cancelled" ||
-            updated.status === "completed"
+            updated.status === "completed" ||
+            updated.status === "expired"
           ) {
             setActiveJob(null);
           } else {
@@ -93,6 +96,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       lat: number;
       lng: number;
       description?: string;
+      images?: string[];
     }) => {
       if (!userId) return;
       setLoading(true);
@@ -109,6 +113,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
           status: "searching",
           location: point,
           description: params.description ?? null,
+          images: params.images ?? [],
         })
         .select()
         .single();

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useProviderJobs } from "../hooks/useProviderJobs";
 import { supabase } from "../lib/supabase";
 import {
   Wrench,
@@ -9,10 +10,13 @@ import {
   LogOut,
   CheckCircle,
   Clock,
+  Briefcase,
+  FileText,
 } from "lucide-react";
 
 export function ProviderDashboard() {
   const { user, role, providerStatus } = useAuth();
+  const { activeJob } = useProviderJobs(user?.id);
 
   return (
     <div className="min-h-screen bg-[#f9fafb] font-sans">
@@ -122,13 +126,44 @@ export function ProviderDashboard() {
           </div>
         </div>
 
-        {/* Upcoming Jobs Placeholder */}
-        <div className="mt-10 rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
-          <Clock size={32} className="mx-auto text-gray-300" />
-          <h3 className="mt-4 font-semibold text-gray-400">No incoming jobs yet</h3>
-          <p className="mt-1 text-sm text-gray-400">
-            When a client requests your service, it will appear here.
-          </p>
+        {/* Active Job / Placeholder */}
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold">Current Job</h2>
+
+          {activeJob ? (
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 shrink-0">
+                  <Briefcase size={24} className="text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 capitalize">{activeJob.category}</h3>
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 capitalize">
+                      {activeJob.status}
+                    </span>
+                  </div>
+                  {activeJob.description && (
+                    <p className="mt-1 text-sm text-gray-500 flex items-center gap-1.5">
+                      <FileText size={14} className="shrink-0" />
+                      <span className="truncate">{activeJob.description}</span>
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-400">
+                    Accepted {new Date(activeJob.updated_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
+              <Clock size={32} className="mx-auto text-gray-300" />
+              <h3 className="mt-4 font-semibold text-gray-400">No incoming jobs yet</h3>
+              <p className="mt-1 text-sm text-gray-400">
+                When a client requests your service, it will appear here.
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>
