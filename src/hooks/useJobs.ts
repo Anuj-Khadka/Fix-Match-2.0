@@ -105,16 +105,20 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       // PostGIS point: ST_MakePoint(lng, lat) — note: longitude first
       const point = `SRID=4326;POINT(${params.lng} ${params.lat})`;
 
+      const row: Record<string, unknown> = {
+        client_id: userId,
+        category: params.category,
+        status: "searching",
+        location: point,
+        description: params.description ?? null,
+      };
+      if (params.images && params.images.length > 0) {
+        row.images = params.images;
+      }
+
       const { data, error: insertErr } = await supabase
         .from("jobs")
-        .insert({
-          client_id: userId,
-          category: params.category,
-          status: "searching",
-          location: point,
-          description: params.description ?? null,
-          images: params.images ?? [],
-        })
+        .insert(row)
         .select()
         .single();
 
