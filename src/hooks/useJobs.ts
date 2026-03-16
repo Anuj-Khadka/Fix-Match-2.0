@@ -30,8 +30,17 @@ export interface Job {
 
 const ACTIVE_STATUSES = ["searching", "accepted", "matched", "en_route", "arrived", "in_progress"];
 
+export interface ProviderInfo {
+  id: string;
+  full_name: string | null;
+  business_name: string | null;
+  avg_rating: number | null;
+  total_reviews: number;
+}
+
 interface UseJobsReturn {
   activeJob: Job | null;
+  providerInfo: ProviderInfo | null;
   loading: boolean;
   error: string | null;
   createJob: (params: {
@@ -48,8 +57,55 @@ interface UseJobsReturn {
 
 export function useJobs(userId: string | undefined): UseJobsReturn {
   const [activeJob, setActiveJob] = useState<Job | null>(null);
+  const [providerInfo, setProviderInfo] = useState<ProviderInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch provider info when provider_id appears on the job
+  useEffect(() => {
+    if (!activeJob?.provider_id) {
+      setProviderInfo(null);
+      return;
+    }
+
+    const pid = activeJob.provider_id;
+
+    async function fetchProviderInfo() {
+      // Fetch profile + provider_profiles
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", pid)
+        .single();
+
+      const { data: provProfile } = await supabase
+        .from("provider_profiles")
+        .select("business_name")
+        .eq("id", pid)
+        .single();
+
+      // Fetch average rating
+      const { data: reviews } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("reviewee_id", pid);
+
+      const ratings = reviews ?? [];
+      const avg = ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+        : null;
+
+      setProviderInfo({
+        id: pid,
+        full_name: profile?.full_name ?? null,
+        business_name: provProfile?.business_name ?? null,
+        avg_rating: avg ? Math.round(avg * 10) / 10 : null,
+        total_reviews: ratings.length,
+      });
+    }
+
+    fetchProviderInfo();
+  }, [activeJob?.provider_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On mount, check for active job OR a completed job pending review
   useEffect(() => {
@@ -213,5 +269,5 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
     setActiveJob(null);
   }, []);
 
-  return { activeJob, loading, error, createJob, cancelJob, submitReview, dismissCompletedJob };
+  return { activeJob, providerInfo, loading, error, createJob, cancelJob, submitReview, dismissCompletedJob };
 }

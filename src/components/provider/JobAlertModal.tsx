@@ -15,6 +15,7 @@ interface Props {
   accepting: boolean;
   acceptError: string | null;
   onAccept: () => void;
+  onDecline: () => void;
   onDismiss: () => void;
 }
 
@@ -35,6 +36,7 @@ export function JobAlertModal({
   accepting,
   acceptError,
   onAccept,
+  onDecline,
   onDismiss,
 }: Props) {
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
@@ -110,10 +112,10 @@ export function JobAlertModal({
           {/* Actions */}
           <div className="mt-6 flex gap-3">
             <button
-              onClick={onDismiss}
+              onClick={onDecline}
               className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
             >
-              Pass
+              Decline
             </button>
             <button
               onClick={onAccept}

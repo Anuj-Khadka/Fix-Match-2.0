@@ -18,6 +18,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useJobs, type JobCategory } from "../hooks/useJobs";
+import { useDispatch } from "../hooks/useDispatch";
 import { useElapsedTime } from "../hooks/useElapsedTime";
 import { JobProgressStepper } from "../components/job/JobProgressStepper";
 import { RatingModal } from "../components/job/RatingModal";
@@ -152,6 +153,13 @@ export function Dashboard() {
   const activeJob = jobs.activeJob;
   const activeStatus = activeJob?.status;
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
+  const providerInfo = jobs.providerInfo;
+
+  // Sequential dispatch — only active while job is "searching"
+  const dispatch = useDispatch(
+    activeJob?.id ?? null,
+    activeStatus ?? null,
+  );
 
   const STATUS_MESSAGES: Record<string, string> = {
     matched: "Your pro has accepted the job and will head to you shortly.",
@@ -284,14 +292,43 @@ export function Dashboard() {
                 <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                   <ShieldCheck size={20} className="text-emerald-600" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-900">Pro Found!</p>
                   <p className="text-sm text-gray-500 capitalize">
                     {activeJob.category}&nbsp;·&nbsp;
-                    <span className="text-emerald-600 font-semibold">{activeStatus.replace("_", " ")}</span>
+                    <span className="text-emerald-600 font-semibold">{activeStatus!.replace("_", " ")}</span>
                   </p>
                 </div>
               </div>
+
+              {/* Provider info */}
+              {providerInfo && (
+                <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-cobalt/10 flex items-center justify-center text-cobalt font-bold text-sm shrink-0">
+                    {(providerInfo.full_name?.[0] ?? "P").toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {providerInfo.full_name ?? "Your Pro"}
+                    </p>
+                    {providerInfo.business_name && (
+                      <p className="text-xs text-gray-500 truncate">{providerInfo.business_name}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    {providerInfo.avg_rating !== null ? (
+                      <p className="text-sm font-semibold text-amber-500">
+                        {"★"} {providerInfo.avg_rating}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-400">New pro</p>
+                    )}
+                    {providerInfo.total_reviews > 0 && (
+                      <p className="text-xs text-gray-400">{providerInfo.total_reviews} review{providerInfo.total_reviews !== 1 ? "s" : ""}</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <JobProgressStepper currentStatus={activeStatus} variant="client" />
 
@@ -333,28 +370,50 @@ export function Dashboard() {
 
           {activeJob && (activeStatus === "searching" || activeStatus === "accepted") && (
             <div
-              className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-cobalt/20 shadow-xl shadow-cobalt/10 p-5 flex items-center gap-4 text-left"
+              className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-cobalt/20 shadow-xl shadow-cobalt/10 p-5 text-left space-y-3"
               style={{ animation: "fade-in-up 0.4s ease-out both" }}
             >
-              <div className="relative w-12 h-12 shrink-0">
-                <div className="absolute inset-0 rounded-full border-2 border-cobalt animate-ping opacity-30" />
-                <div className="absolute inset-1 rounded-full border-2 border-cobalt opacity-20" />
-                <div className="absolute inset-3 rounded-full bg-cobalt" />
+              <div className="flex items-center gap-4">
+                <div className="relative w-12 h-12 shrink-0">
+                  <div className="absolute inset-0 rounded-full border-2 border-cobalt animate-ping opacity-30" />
+                  <div className="absolute inset-1 rounded-full border-2 border-cobalt opacity-20" />
+                  <div className="absolute inset-3 rounded-full bg-cobalt" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900">Searching for nearby Pros…</p>
+                  <p className="text-sm text-gray-500 mt-0.5 capitalize">
+                    {activeJob.category}&nbsp;·&nbsp;
+                    <span className="text-orange-500 font-semibold">{activeJob.status}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={jobs.cancelJob}
+                  disabled={jobs.loading}
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-100 transition cursor-pointer disabled:opacity-40 shrink-0"
+                >
+                  {jobs.loading ? <Loader2 size={15} className="animate-spin" /> : "Cancel"}
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900">Searching for nearby Pros…</p>
-                <p className="text-sm text-gray-500 mt-0.5 capitalize">
-                  {activeJob.category}&nbsp;·&nbsp;
-                  <span className="text-orange-500 font-semibold">{activeJob.status}</span>
+
+              {/* Dispatch progress */}
+              {dispatch.dispatching && dispatch.dispatchPhase === "sequential" && dispatch.currentTarget && (
+                <p className="text-xs text-gray-400">
+                  Contacting pro {dispatch.queuePosition} of {Math.min(3, dispatch.queueTotal)}
+                  {dispatch.currentTarget.full_name && (
+                    <span className="text-gray-500 font-medium"> — {dispatch.currentTarget.full_name}</span>
+                  )}
                 </p>
-              </div>
-              <button
-                onClick={jobs.cancelJob}
-                disabled={jobs.loading}
-                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-100 transition cursor-pointer disabled:opacity-40 shrink-0"
-              >
-                {jobs.loading ? <Loader2 size={15} className="animate-spin" /> : "Cancel"}
-              </button>
+              )}
+              {dispatch.dispatchPhase === "blast" && (
+                <p className="text-xs text-gray-400">
+                  Sending to all available pros in your area…
+                </p>
+              )}
+              {dispatch.dispatchPhase === "no_providers" && (
+                <p className="text-xs text-orange-500">
+                  No providers available right now. Your request is still active.
+                </p>
+              )}
             </div>
           )}
 

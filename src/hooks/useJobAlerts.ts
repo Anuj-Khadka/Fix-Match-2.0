@@ -11,6 +11,7 @@ interface UseJobAlertsReturn {
   accepting: boolean;
   acceptError: string | null;
   acceptJob: () => Promise<void>;
+  declineJob: () => void;
   dismissAlert: () => void;
 }
 
@@ -19,12 +20,10 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
-  // Use refs for values accessed inside Realtime callbacks to avoid
-  // tearing down channels when these change.
   const categoriesRef = useRef<string[]>([]);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch provider's service categories into ref (no re-render needed)
+  // Fetch provider's service categories
   useEffect(() => {
     if (!userId) return;
     supabase
@@ -40,8 +39,7 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
       });
   }, [userId]);
 
-  // Single effect: subscribe to BOTH postgres_changes AND broadcast
-  // Only depends on userId — no array state in deps, so no cycling.
+  // Subscribe to broadcast alerts + job_taken events
   useEffect(() => {
     if (!userId) return;
 
@@ -56,7 +54,24 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
       }, 30_000);
     }
 
-    // Channel 1: postgres_changes — picks up INSERTs even without Edge Function
+    // Broadcast channel — receives targeted alerts from client dispatcher
+    // AND job_taken notifications to dismiss stale alerts
+    const broadcastChannel = supabase
+      .channel(`job_alerts:${userId}`)
+      .on("broadcast", { event: "new_job" }, (payload) => {
+        const alert = payload.payload as JobAlert;
+        showAlert(alert);
+      })
+      .on("broadcast", { event: "job_taken" }, (payload) => {
+        const takenJobId = (payload.payload as { job_id: string }).job_id;
+        setCurrentAlert((prev) =>
+          prev?.job_id === takenJobId ? null : prev
+        );
+        if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      })
+      .subscribe();
+
+    // postgres_changes as fallback — only for jobs WITHOUT sequential dispatch
     const pgChannel = supabase
       .channel(`pg_jobs_${userId}`)
       .on(
@@ -77,18 +92,12 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
           const cats = categoriesRef.current;
           if (cats.length === 0 || !cats.includes(job.category)) return;
           if (job.provider_id) return;
-          showAlert({ job_id: job.id, category: job.category });
+          // The client dispatcher will send targeted broadcasts.
+          // postgres_changes fires for ALL providers — we suppress it here
+          // so the dispatch hook controls who gets alerted and when.
+          // Providers will only see alerts via the broadcast channel.
         }
       )
-      .subscribe();
-
-    // Channel 2: broadcast — receives pings from Edge Function dispatcher
-    const broadcastChannel = supabase
-      .channel(`job_alerts:${userId}`)
-      .on("broadcast", { event: "new_job" }, (payload) => {
-        const alert = payload.payload as JobAlert;
-        showAlert(alert);
-      })
       .subscribe();
 
     return () => {
@@ -103,13 +112,12 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
     setAccepting(true);
     setAcceptError(null);
 
-    // Try RPC first, fall back to direct update
     const { data, error } = await supabase.rpc("accept_job", {
       p_job_id: currentAlert.job_id,
     });
 
     if (error) {
-      // Fallback: RPC doesn't exist yet (migration not run)
+      // Fallback: RPC doesn't exist yet
       const { error: updateErr } = await supabase
         .from("jobs")
         .update({
@@ -143,11 +151,36 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
     }
   }, [currentAlert, userId]);
 
+  // Decline: dismiss locally + notify client dispatcher to advance immediately
+  const declineJob = useCallback(() => {
+    if (!currentAlert) return;
+    const jobId = currentAlert.job_id;
+
+    // Broadcast decline to client dispatcher
+    const ch = supabase.channel(`dispatch_response:${jobId}`, {
+      config: { broadcast: { self: false } },
+    });
+    ch.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        ch.send({
+          type: "broadcast",
+          event: "declined",
+          payload: { provider_id: userId },
+        });
+        setTimeout(() => supabase.removeChannel(ch), 1000);
+      }
+    });
+
+    setCurrentAlert(null);
+    setAcceptError(null);
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+  }, [currentAlert, userId]);
+
   const dismissAlert = useCallback(() => {
     setCurrentAlert(null);
     setAcceptError(null);
     if (dismissTimer.current) clearTimeout(dismissTimer.current);
   }, []);
 
-  return { currentAlert, accepting, acceptError, acceptJob, dismissAlert };
+  return { currentAlert, accepting, acceptError, acceptJob, declineJob, dismissAlert };
 }

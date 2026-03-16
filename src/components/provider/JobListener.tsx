@@ -9,7 +9,7 @@ interface Props {
 
 export function JobListener({ children }: Props) {
   const { user } = useAuth();
-  const { currentAlert, accepting, acceptError, acceptJob, dismissAlert } =
+  const { currentAlert, accepting, acceptError, acceptJob, declineJob, dismissAlert } =
     useJobAlerts(user?.id);
 
   return (
@@ -22,6 +22,7 @@ export function JobListener({ children }: Props) {
           accepting={accepting}
           acceptError={acceptError}
           onAccept={acceptJob}
+          onDecline={declineJob}
           onDismiss={dismissAlert}
         />
       )}
