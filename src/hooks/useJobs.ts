@@ -3,7 +3,16 @@ import { supabase } from "../lib/supabase";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export type JobCategory = "plumbing" | "electrical" | "cleaning";
-export type JobStatus = "searching" | "accepted" | "matched" | "completed" | "cancelled" | "expired";
+export type JobStatus =
+  | "searching"
+  | "accepted"
+  | "matched"
+  | "en_route"
+  | "arrived"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "expired";
 
 export interface Job {
   id: string;
@@ -13,9 +22,13 @@ export interface Job {
   status: JobStatus;
   description: string | null;
   images?: string[];
+  started_at: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+const ACTIVE_STATUSES = ["searching", "accepted", "matched", "en_route", "arrived", "in_progress"];
 
 interface UseJobsReturn {
   activeJob: Job | null;
@@ -29,6 +42,8 @@ interface UseJobsReturn {
     images?: string[];
   }) => Promise<void>;
   cancelJob: () => Promise<void>;
+  submitReview: (rating: number, comment: string) => Promise<{ success: boolean; error?: string }>;
+  dismissCompletedJob: () => void;
 }
 
 export function useJobs(userId: string | undefined): UseJobsReturn {
@@ -36,21 +51,49 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount, check if the client already has an active (searching/accepted) job
+  // On mount, check for active job OR a completed job pending review
   useEffect(() => {
     if (!userId) return;
 
     async function fetchActive() {
+      // First check for active jobs
       const { data } = await supabase
         .from("jobs")
         .select("*")
         .eq("client_id", userId)
-        .in("status", ["searching", "accepted", "matched"])
+        .in("status", ACTIVE_STATUSES)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (data) setActiveJob(data as Job);
+      if (data) {
+        setActiveJob(data as Job);
+        return;
+      }
+
+      // Check for completed job pending review
+      const { data: completed } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("client_id", userId)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (completed) {
+        // Check if already reviewed
+        const { data: review } = await supabase
+          .from("reviews")
+          .select("id")
+          .eq("job_id", completed.id)
+          .eq("reviewer_id", userId)
+          .maybeSingle();
+
+        if (!review) {
+          setActiveJob(completed as Job);
+        }
+      }
     }
 
     fetchActive();
@@ -72,13 +115,10 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
         },
         (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           const updated = payload.new as unknown as Job;
-          if (
-            updated.status === "cancelled" ||
-            updated.status === "completed" ||
-            updated.status === "expired"
-          ) {
+          if (updated.status === "cancelled" || updated.status === "expired") {
             setActiveJob(null);
           } else {
+            // Keep completed jobs in state for rating modal
             setActiveJob(updated);
           }
         },
@@ -102,7 +142,6 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       setLoading(true);
       setError(null);
 
-      // PostGIS point: ST_MakePoint(lng, lat) — note: longitude first
       const point = `SRID=4326;POINT(${params.lng} ${params.lat})`;
 
       const row: Record<string, unknown> = {
@@ -154,5 +193,25 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
     setActiveJob(null);
   }, [activeJob]);
 
-  return { activeJob, loading, error, createJob, cancelJob };
+  const submitReview = useCallback(
+    async (rating: number, comment: string) => {
+      if (!activeJob) return { success: false, error: "No job" };
+
+      const { data, error } = await supabase.rpc("submit_review", {
+        p_job_id: activeJob.id,
+        p_rating: rating,
+        p_comment: comment || null,
+      });
+
+      if (error) return { success: false, error: error.message };
+      return data as { success: boolean; error?: string };
+    },
+    [activeJob],
+  );
+
+  const dismissCompletedJob = useCallback(() => {
+    setActiveJob(null);
+  }, []);
+
+  return { activeJob, loading, error, createJob, cancelJob, submitReview, dismissCompletedJob };
 }

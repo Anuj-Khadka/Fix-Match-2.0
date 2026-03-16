@@ -1,10 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import type { Job } from "./useJobs";
+
+const ACTIVE_STATUSES = ["matched", "accepted", "en_route", "arrived", "in_progress"];
 
 interface UseProviderJobsReturn {
   activeJob: Job | null;
   loading: boolean;
+  advanceStatus: (newStatus: string) => Promise<{ success: boolean; error?: string }>;
+  submitReview: (rating: number, comment: string) => Promise<{ success: boolean; error?: string }>;
+  dismissCompletedJob: () => void;
 }
 
 export function useProviderJobs(userId: string | undefined): UseProviderJobsReturn {
@@ -18,16 +23,45 @@ export function useProviderJobs(userId: string | undefined): UseProviderJobsRetu
     }
 
     async function fetch() {
+      // Check for active job first
       const { data } = await supabase
         .from("jobs")
         .select("*")
         .eq("provider_id", userId)
-        .in("status", ["matched", "accepted"])
+        .in("status", ACTIVE_STATUSES)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      setActiveJob(data as Job | null);
+      if (data) {
+        setActiveJob(data as Job | null);
+        setLoading(false);
+        return;
+      }
+
+      // Check for completed job pending review
+      const { data: completed } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("provider_id", userId)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (completed) {
+        const { data: review } = await supabase
+          .from("reviews")
+          .select("id")
+          .eq("job_id", completed.id)
+          .eq("reviewer_id", userId)
+          .maybeSingle();
+
+        if (!review) {
+          setActiveJob(completed as Job);
+        }
+      }
+
       setLoading(false);
     }
 
@@ -46,9 +80,10 @@ export function useProviderJobs(userId: string | undefined): UseProviderJobsRetu
         },
         (payload) => {
           const updated = payload.new as Job;
-          if (updated.status === "completed" || updated.status === "cancelled") {
+          if (updated.status === "cancelled" || updated.status === "expired") {
             setActiveJob(null);
-          } else if (updated.status === "matched" || updated.status === "accepted") {
+          } else {
+            // Keep completed in state for rating
             setActiveJob(updated);
           }
         }
@@ -60,5 +95,40 @@ export function useProviderJobs(userId: string | undefined): UseProviderJobsRetu
     };
   }, [userId]);
 
-  return { activeJob, loading };
+  const advanceStatus = useCallback(
+    async (newStatus: string) => {
+      if (!activeJob) return { success: false, error: "No active job" };
+
+      const { data, error } = await supabase.rpc("advance_job_status", {
+        p_job_id: activeJob.id,
+        p_new_status: newStatus,
+      });
+
+      if (error) return { success: false, error: error.message };
+      return data as { success: boolean; error?: string };
+    },
+    [activeJob],
+  );
+
+  const submitReview = useCallback(
+    async (rating: number, comment: string) => {
+      if (!activeJob) return { success: false, error: "No job" };
+
+      const { data, error } = await supabase.rpc("submit_review", {
+        p_job_id: activeJob.id,
+        p_rating: rating,
+        p_comment: comment || null,
+      });
+
+      if (error) return { success: false, error: error.message };
+      return data as { success: boolean; error?: string };
+    },
+    [activeJob],
+  );
+
+  const dismissCompletedJob = useCallback(() => {
+    setActiveJob(null);
+  }, []);
+
+  return { activeJob, loading, advanceStatus, submitReview, dismissCompletedJob };
 }

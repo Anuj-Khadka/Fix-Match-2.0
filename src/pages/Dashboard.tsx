@@ -18,6 +18,9 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useJobs, type JobCategory } from "../hooks/useJobs";
+import { useElapsedTime } from "../hooks/useElapsedTime";
+import { JobProgressStepper } from "../components/job/JobProgressStepper";
+import { RatingModal } from "../components/job/RatingModal";
 import { supabase } from "../lib/supabase";
 import { BookingPanel, type BookingData } from "../components/booking/BookingPanel";
 
@@ -145,8 +148,17 @@ export function Dashboard() {
   };
 
   const userInitial = (user?.email?.[0] ?? "U").toUpperCase();
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const activeJob = jobs.activeJob;
   const activeStatus = activeJob?.status;
+  const elapsed = useElapsedTime(activeJob?.started_at ?? null);
+
+  const STATUS_MESSAGES: Record<string, string> = {
+    matched: "Your pro has accepted the job and will head to you shortly.",
+    en_route: "Your pro is on the way to your location.",
+    arrived: "Your pro has arrived. Please let them in.",
+    in_progress: "Service is in progress.",
+  };
 
   /* ── Render ───────────────────────────────────────────────────── */
   return (
@@ -262,23 +274,61 @@ export function Dashboard() {
             </p>
           </div>
 
-          {/* Active Job Banner */}
-          {activeJob && activeStatus === "matched" && (
+          {/* Active Job Progress Tracker */}
+          {activeJob && activeStatus && ["matched", "en_route", "arrived", "in_progress"].includes(activeStatus) && (
             <div
-              className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-emerald-200 shadow-xl shadow-emerald-500/10 p-5 flex items-center gap-4 text-left"
+              className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-emerald-200 shadow-xl shadow-emerald-500/10 p-6 text-left space-y-4"
               style={{ animation: "fade-in-up 0.4s ease-out both" }}
             >
-              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                <ShieldCheck size={24} className="text-emerald-600" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={20} className="text-emerald-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">Pro Found!</p>
+                  <p className="text-sm text-gray-500 capitalize">
+                    {activeJob.category}&nbsp;·&nbsp;
+                    <span className="text-emerald-600 font-semibold">{activeStatus.replace("_", " ")}</span>
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900">Pro Found!</p>
-                <p className="text-sm text-gray-500 mt-0.5 capitalize">
-                  {activeJob.category}&nbsp;·&nbsp;
-                  <span className="text-emerald-600 font-semibold">Matched</span>
+
+              <JobProgressStepper currentStatus={activeStatus} variant="client" />
+
+              <p className="text-sm text-gray-500">{STATUS_MESSAGES[activeStatus]}</p>
+
+              {elapsed && activeStatus === "in_progress" && (
+                <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                  <Clock size={14} className="text-cobalt" />
+                  Service time: <span className="font-semibold text-gray-700">{elapsed}</span>
                 </p>
-              </div>
+              )}
+
+              {(activeStatus === "matched" || activeStatus === "en_route") && (
+                <button
+                  onClick={jobs.cancelJob}
+                  disabled={jobs.loading}
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-100 transition cursor-pointer disabled:opacity-40"
+                >
+                  {jobs.loading ? <Loader2 size={15} className="animate-spin" /> : "Cancel"}
+                </button>
+              )}
             </div>
+          )}
+
+          {/* Completed — Rating Modal */}
+          {activeJob && activeStatus === "completed" && (
+            <RatingModal
+              roleLabel="your pro"
+              submitting={reviewSubmitting}
+              onSubmit={async (rating, comment) => {
+                setReviewSubmitting(true);
+                await jobs.submitReview(rating, comment);
+                setReviewSubmitting(false);
+                jobs.dismissCompletedJob();
+              }}
+              onDismiss={jobs.dismissCompletedJob}
+            />
           )}
 
           {activeJob && (activeStatus === "searching" || activeStatus === "accepted") && (
