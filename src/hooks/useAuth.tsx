@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
 import type { ReactNode } from "react";
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [loading, setLoading] = useState(true);
+  const hasResolvedRef = useRef(false);
 
   useEffect(() => {
     // Get initial session
@@ -55,10 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Keep loading=true while we resolve the role.
-    // This prevents ProtectedRoute / RoleDashboard from rendering
-    // with a stale or null role before the async work finishes.
-    setLoading(true);
+    // Only show loading on the initial session load.
+    // On subsequent token refreshes we keep the existing state visible
+    // so that ProtectedRoute doesn't unmount the component tree.
+    if (!hasResolvedRef.current) {
+      setLoading(true);
+    }
 
     setSession(session);
     setUser(session.user);
@@ -98,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProviderStatus(status);
     setOnboardingStep(step);
     setLoading(false);
+    hasResolvedRef.current = true;
   }
 
   // Re-fetch provider profile without a full session reload

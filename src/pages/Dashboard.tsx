@@ -69,11 +69,36 @@ export function Dashboard() {
 
   /* ── Submit job with image uploads ── */
   const handleSubmitJob = async () => {
-    if (!user || !bookingData.category || !bookingData.lat || !bookingData.lng) return;
+    if (!user || !bookingData.category) return;
     setSubmitting(true);
     setSubmitError(null);
 
     try {
+      // 0. Resolve coordinates — geocode the typed address if needed
+      let lat = bookingData.lat;
+      let lng = bookingData.lng;
+
+      if (!lat || !lng) {
+        if (!bookingData.address.trim()) {
+          setSubmitError("Please enter an address or use your current location.");
+          setSubmitting(false);
+          return;
+        }
+        // Forward-geocode the typed address via Nominatim
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(bookingData.address)}&limit=1`
+        );
+        const results = await res.json();
+        if (results.length > 0) {
+          lat = parseFloat(results[0].lat);
+          lng = parseFloat(results[0].lon);
+        } else {
+          setSubmitError("Could not find that address. Please try a more specific address or use your current location.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
       // 1. Upload images to job-images bucket
       const imageUrls: string[] = [];
       const jobId = crypto.randomUUID();
@@ -95,8 +120,8 @@ export function Dashboard() {
       // 2. Create the job
       await jobs.createJob({
         category: bookingData.category,
-        lat: bookingData.lat,
-        lng: bookingData.lng,
+        lat,
+        lng,
         description: bookingData.description || undefined,
         images: imageUrls,
       });

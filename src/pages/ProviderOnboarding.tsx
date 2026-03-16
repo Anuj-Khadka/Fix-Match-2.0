@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useRef, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   User,
@@ -125,6 +125,49 @@ function Step1({
   onNext: () => void;
 }) {
   const [error, setError] = useState("");
+  const [suggestions, setSuggestions] = useState<{ display_name: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function handleAddressChange(value: string) {
+    onChange({ address: value });
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.trim().length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&countrycodes=us&addressdetails=1&limit=5`
+        );
+        const results = await res.json();
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+  }
+
+  function selectSuggestion(displayName: string) {
+    onChange({ address: displayName });
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -179,7 +222,7 @@ function Step1({
         />
       </div>
 
-      <div>
+      <div ref={wrapperRef} className="relative">
         <label htmlFor="address" className="block text-sm font-medium text-gray-700">
           Business Address <span className="text-red-500">*</span>
         </label>
@@ -187,10 +230,25 @@ function Step1({
           id="address"
           type="text"
           value={data.address}
-          onChange={(e) => onChange({ address: e.target.value })}
+          onChange={(e) => handleAddressChange(e.target.value)}
+          onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           placeholder="e.g. 123 Main St, Denver, CO 80202"
+          autoComplete="off"
           className={inputClass}
         />
+        {showSuggestions && suggestions.length > 0 && (
+          <ul className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+            {suggestions.map((s, i) => (
+              <li
+                key={i}
+                onMouseDown={() => selectSuggestion(s.display_name)}
+                className="px-4 py-2.5 text-sm text-gray-700 hover:bg-cobalt/5 cursor-pointer border-b border-gray-100 last:border-b-0"
+              >
+                {s.display_name}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div>
@@ -199,11 +257,16 @@ function Step1({
         </label>
         <input
           id="experience"
-          type="number"
-          min={0}
-          max={50}
-          value={data.years_of_experience}
-          onChange={(e) => onChange({ years_of_experience: Number(e.target.value) })}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={data.years_of_experience || ""}
+          onChange={(e) => {
+            const val = e.target.value.replace(/[^0-9]/g, "");
+            const num = val === "" ? 0 : Math.min(Number(val), 50);
+            onChange({ years_of_experience: num });
+          }}
+          placeholder="e.g. 5"
           className={inputClass}
         />
       </div>
