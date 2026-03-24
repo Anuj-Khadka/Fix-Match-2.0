@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Wrench,
@@ -65,6 +65,7 @@ export function Dashboard() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const lastJobCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const handleSignOut = () => {
     setDropdownOpen(false);
@@ -121,7 +122,10 @@ export function Dashboard() {
         imageUrls.push(urlData.publicUrl);
       }
 
-      // 2. Create the job
+      // 2. Save coordinates for dispatch before reset
+      lastJobCoordsRef.current = { lat, lng };
+
+      // 3. Create the job
       await jobs.createJob({
         category: bookingData.category,
         lat,
@@ -159,6 +163,15 @@ export function Dashboard() {
   const dispatch = useDispatch(
     activeJob?.id ?? null,
     activeStatus ?? null,
+    activeJob
+      ? {
+          category: activeJob.category,
+          description: activeJob.description,
+          images: activeJob.images ?? [],
+          lat: lastJobCoordsRef.current?.lat ?? null,
+          lng: lastJobCoordsRef.current?.lng ?? null,
+        }
+      : null,
   );
 
   const STATUS_MESSAGES: Record<string, string> = {

@@ -19,6 +19,10 @@ export function JobListener({ children }: Props) {
         <JobAlertModal
           jobId={currentAlert.job_id}
           category={currentAlert.category}
+          description={currentAlert.description}
+          images={currentAlert.images}
+          locationLat={currentAlert.location_lat}
+          locationLng={currentAlert.location_lng}
           accepting={accepting}
           acceptError={acceptError}
           onAccept={acceptJob}

@@ -4,6 +4,10 @@ import { supabase } from "../lib/supabase";
 interface JobAlert {
   job_id: string;
   category: string;
+  description: string | null;
+  images: string[];
+  location_lat: number | null;
+  location_lng: number | null;
 }
 
 interface UseJobAlertsReturn {

@@ -18,7 +18,15 @@ interface UseDispatchReturn {
 const INDIVIDUAL_TIMEOUT = 30_000; // 30s per provider
 const MAX_INDIVIDUAL = 3;
 
-export function useDispatch(jobId: string | null, jobStatus: string | null): UseDispatchReturn {
+export interface JobInfo {
+  category: string;
+  description: string | null;
+  images: string[];
+  lat: number | null;
+  lng: number | null;
+}
+
+export function useDispatch(jobId: string | null, jobStatus: string | null, jobInfo?: JobInfo | null): UseDispatchReturn {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchPhase, setDispatchPhase] = useState<UseDispatchReturn["dispatchPhase"]>("idle");
   const [currentTarget, setCurrentTarget] = useState<Provider | null>(null);
@@ -30,6 +38,8 @@ export function useDispatch(jobId: string | null, jobStatus: string | null): Use
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const activeJobIdRef = useRef<string | null>(null);
+  const jobInfoRef = useRef<JobInfo | null>(null);
+  jobInfoRef.current = jobInfo ?? null;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -47,7 +57,8 @@ export function useDispatch(jobId: string | null, jobStatus: string | null): Use
   }, [clearTimer]);
 
   // Send alert to a specific provider via broadcast
-  const alertProvider = useCallback((provider: Provider, jobIdVal: string, category?: string) => {
+  const alertProvider = useCallback((provider: Provider, jobIdVal: string) => {
+    const info = jobInfoRef.current;
     const channel = supabase.channel(`job_alerts:${provider.id}`, {
       config: { broadcast: { self: false } },
     });
@@ -56,7 +67,14 @@ export function useDispatch(jobId: string | null, jobStatus: string | null): Use
         channel.send({
           type: "broadcast",
           event: "new_job",
-          payload: { job_id: jobIdVal, category: category ?? "" },
+          payload: {
+            job_id: jobIdVal,
+            category: info?.category ?? "",
+            description: info?.description ?? null,
+            images: info?.images ?? [],
+            location_lat: info?.lat ?? null,
+            location_lng: info?.lng ?? null,
+          },
         });
         // Unsubscribe after sending
         setTimeout(() => supabase.removeChannel(channel), 1000);
