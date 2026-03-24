@@ -52,7 +52,7 @@ export function StepCheckpoint({
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-400">Description</p>
-              <p className="text-sm text-gray-900 truncate">{description}</p>
+              <p className="text-sm text-gray-900 break-words">{description}</p>
             </div>
           </div>
         )}
@@ -64,7 +64,7 @@ export function StepCheckpoint({
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-400">Location</p>
-              <p className="text-sm text-gray-900 truncate">{address}</p>
+              <p className="text-sm text-gray-900 break-words">{address}</p>
             </div>
           </div>
         )}

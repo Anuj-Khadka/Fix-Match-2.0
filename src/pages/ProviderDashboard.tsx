@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useProviderJobs } from "../hooks/useProviderJobs";
@@ -21,6 +21,48 @@ export function ProviderDashboard() {
   const { activeJob, advanceStatus, submitReview, dismissCompletedJob } = useProviderJobs(user?.id);
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  // Live stats
+  const [completedCount, setCompletedCount] = useState(0);
+  const [cancelledCount, setCancelledCount] = useState(0);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    async function fetchStats() {
+      // Completed jobs count
+      const { count: completed } = await supabase
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("provider_id", user!.id)
+        .eq("status", "completed");
+      setCompletedCount(completed ?? 0);
+
+      // Cancelled jobs count
+      const { count: cancelled } = await supabase
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("provider_id", user!.id)
+        .eq("status", "cancelled");
+      setCancelledCount(cancelled ?? 0);
+
+      // Average rating from reviews
+      const { data: reviews } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("reviewee_id", user!.id);
+      const ratings = reviews ?? [];
+      if (ratings.length > 0) {
+        const avg = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+        setAvgRating(Math.round(avg * 10) / 10);
+      } else {
+        setAvgRating(null);
+      }
+    }
+
+    fetchStats();
+  }, [user?.id, activeJob?.status]); // re-fetch when job status changes
 
   return (
     <div className="min-h-screen bg-[#f9fafb] font-sans">
@@ -87,7 +129,29 @@ export function ProviderDashboard() {
 
         {/* Quick Stats */}
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {STATS.map((stat) => (
+          {[
+            {
+              label: "Jobs Completed",
+              value: String(completedCount),
+              icon: CheckCircle,
+              bg: "bg-emerald-50",
+              iconColor: "text-emerald-500",
+            },
+            {
+              label: "Avg Rating",
+              value: avgRating !== null ? `${avgRating} ★` : "N/A",
+              icon: Star,
+              bg: "bg-amber-50",
+              iconColor: "text-amber-500",
+            },
+            {
+              label: "Cancellations",
+              value: String(cancelledCount),
+              icon: Clock,
+              bg: "bg-red-50",
+              iconColor: "text-red-400",
+            },
+          ].map((stat) => (
             <div
               key={stat.label}
               className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
@@ -165,29 +229,6 @@ export function ProviderDashboard() {
 
 /* ── Data ───────────────────────────────────────── */
 
-const STATS = [
-  {
-    label: "Jobs Completed",
-    value: "0",
-    icon: CheckCircle,
-    bg: "bg-emerald-50",
-    iconColor: "text-emerald-500",
-  },
-  {
-    label: "Reliability Score",
-    value: "5.0",
-    icon: Star,
-    bg: "bg-amber-50",
-    iconColor: "text-amber-500",
-  },
-  {
-    label: "Cancellations",
-    value: "0",
-    icon: Clock,
-    bg: "bg-red-50",
-    iconColor: "text-red-400",
-  },
-];
 
 const CATEGORIES = [
   {

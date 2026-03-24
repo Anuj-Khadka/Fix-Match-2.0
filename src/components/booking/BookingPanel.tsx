@@ -59,7 +59,7 @@ export function BookingPanel({
   }
 
   return (
-    <div className="w-full max-w-md rounded-2xl bg-white/95 backdrop-blur-sm shadow-2xl shadow-black/15 overflow-hidden">
+    <div className="w-full max-w-xl rounded-2xl bg-white/95 backdrop-blur-sm shadow-2xl shadow-black/15 overflow-hidden transition-all duration-300">
       {/* Back arrow */}
       {step >= 1 && (
         <div className="px-5 pt-4">
@@ -73,7 +73,7 @@ export function BookingPanel({
       )}
 
       {/* Step container */}
-      <div className="relative min-h-[400px] overflow-hidden">
+      <div className={`relative min-h-[400px] ${step === 4 ? "overflow-visible" : "overflow-hidden"}`}>
         {/* Step 0 — Hero */}
         <div className={`absolute inset-0 p-6 flex items-center justify-center transition-all duration-300 ease-in-out ${stepClass(0)}`}>
           <StepHero onStart={() => setStep(1)} />
@@ -121,7 +121,9 @@ export function BookingPanel({
         </div>
 
         {/* Step 4 — Checkpoint */}
-        <div className={`absolute inset-0 p-6 flex items-center justify-center transition-all duration-300 ease-in-out ${stepClass(4)}`}>
+        <div
+          className={`${step === 4 ? "relative p-6 flex items-center justify-center" : "absolute inset-0 p-6 flex items-center justify-center"} transition-all duration-300 ease-in-out ${stepClass(4)}`}
+        >
           <StepCheckpoint
             category={data.category}
             description={data.description}
