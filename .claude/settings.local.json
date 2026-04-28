@@ -4,7 +4,8 @@
       "Bash(npm create:*)",
       "Bash(npx vite:*)",
       "Bash(npx tsc:*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(xargs wc *)"
     ]
   }
 }
