@@ -6,6 +6,8 @@ import { useElapsedTime } from "../hooks/useElapsedTime";
 import { ActiveJobCard } from "../components/job/ActiveJobCard";
 import { RatingModal } from "../components/job/RatingModal";
 import { JobListener } from "../components/provider/JobListener";
+import { ChatBox } from "../components/job/ChatBox";
+import { useChat } from "../hooks/useChat";
 import { supabase } from "../lib/supabase";
 import type { Job } from "../hooks/useJobs";
 import {
@@ -32,6 +34,27 @@ export function ProviderDashboard() {
   const [jobTab, setJobTab] = useState<"current" | "scheduled">("current");
   const [selectedScheduledJob, setSelectedScheduledJob] = useState<Job | null>(null);
   const selectedElapsed = useElapsedTime(selectedScheduledJob?.started_at ?? null);
+
+  // Client name for chat header
+  const [clientName, setClientName] = useState<string>("Client");
+  useEffect(() => {
+    if (!activeJob?.client_id) return;
+    supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", activeJob.client_id)
+      .single()
+      .then(({ data }) => {
+        if (data?.full_name) setClientName(data.full_name);
+      });
+  }, [activeJob?.client_id]);
+
+  const CHAT_STATUSES = ["matched", "en_route", "arrived", "in_progress"];
+  const chatActive = !!(activeJob && CHAT_STATUSES.includes(activeJob.status));
+  const { messages: chatMessages, sending: chatSending, sendMessage } = useChat(
+    chatActive ? activeJob.id : undefined,
+    user?.id
+  );
   const [isOnline, setIsOnline] = useState(false);
   const [onlineLoading, setOnlineLoading] = useState(false);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
@@ -359,7 +382,20 @@ export function ProviderDashboard() {
           {jobTab === "current" && (
             <>
               {activeJob && activeJob.status !== "completed" ? (
-                <ActiveJobCard job={activeJob} onAdvance={advanceStatus} elapsed={elapsed} />
+                <>
+                  <ActiveJobCard job={activeJob} onAdvance={advanceStatus} elapsed={elapsed} />
+                  {chatActive && (
+                    <div className="mt-4">
+                      <ChatBox
+                        messages={chatMessages}
+                        currentUserId={user!.id}
+                        otherName={clientName}
+                        sending={chatSending}
+                        onSend={sendMessage}
+                      />
+                    </div>
+                  )}
+                </>
               ) : activeJob && activeJob.status === "completed" ? (
                 <RatingModal
                   roleLabel="your client"

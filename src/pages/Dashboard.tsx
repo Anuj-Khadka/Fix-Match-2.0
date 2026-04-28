@@ -25,6 +25,8 @@ import { supabase } from "../lib/supabase";
 import { BookingPanel, type BookingData } from "../components/booking/BookingPanel";
 import { StepProviderSelect, type NearbyProvider } from "../components/booking/StepProviderSelect";
 import { PaymentSummary } from "../components/job/PaymentSummary";
+import { ChatBox } from "../components/job/ChatBox";
+import { useChat } from "../hooks/useChat";
 
 /* ------------------------------------------------------------------ */
 /*  Category config                                                     */
@@ -222,6 +224,13 @@ export function Dashboard() {
   const activeStatus = activeJob?.status;
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
   const providerInfo = jobs.providerInfo;
+
+  const CHAT_STATUSES = ["matched", "en_route", "arrived", "in_progress"];
+  const chatActive = !!(activeJob && activeStatus && CHAT_STATUSES.includes(activeStatus));
+  const { messages: chatMessages, sending: chatSending, sendMessage } = useChat(
+    chatActive ? activeJob.id : undefined,
+    user?.id
+  );
 
   // Listen for provider decline while job is searching
   useEffect(() => {
@@ -428,6 +437,17 @@ export function Dashboard() {
                 >
                   {jobs.loading ? <Loader2 size={15} className="animate-spin" /> : "Cancel"}
                 </button>
+              )}
+
+              {/* Chat — available once provider is en route or closer */}
+              {chatActive && (
+                <ChatBox
+                  messages={chatMessages}
+                  currentUserId={user!.id}
+                  otherName={providerInfo?.full_name ?? "Your Pro"}
+                  sending={chatSending}
+                  onSend={sendMessage}
+                />
               )}
             </div>
           )}

@@ -29,10 +29,12 @@ export function PaymentSummary({ startedAt, completedAt, baseRate, providerName,
   const [tipPreset, setTipPreset] = useState<20 | 22 | 25 | "custom" | null>(null);
   const [customTip, setCustomTip] = useState("");
 
-  // Time worked
+  // Time worked — minimum 5 minutes for billing purposes
+  const MIN_DURATION_MS = 5 * 60 * 1000;
   const start = startedAt ? new Date(startedAt).getTime() : null;
   const end = completedAt ? new Date(completedAt).getTime() : null;
-  const durationMs = start && end ? Math.max(0, end - start) : null;
+  const rawDurationMs = start && end ? Math.max(0, end - start) : null;
+  const durationMs = rawDurationMs != null ? Math.max(rawDurationMs, MIN_DURATION_MS) : null;
   const durationHours = durationMs != null ? durationMs / 3600000 : null;
 
   // Costs (all zero if rate/time missing)
