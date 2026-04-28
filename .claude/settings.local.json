@@ -5,7 +5,8 @@
       "Bash(npx vite:*)",
       "Bash(npx tsc:*)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(xargs wc *)"
+      "Bash(xargs wc *)",
+      "Bash(supabase --version)"
     ]
   }
 }

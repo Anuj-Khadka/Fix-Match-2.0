@@ -113,9 +113,11 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
 
     async function fetchActive() {
       // First check for active jobs
+      const JOBS_COLUMNS = "id,client_id,provider_id,category,status,description,images,started_at,completed_at,created_at,updated_at";
+
       const { data } = await supabase
         .from("jobs")
-        .select("*")
+        .select(JOBS_COLUMNS)
         .eq("client_id", userId)
         .in("status", ACTIVE_STATUSES)
         .order("created_at", { ascending: false })
@@ -130,7 +132,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       // Check for completed job pending review
       const { data: completed } = await supabase
         .from("jobs")
-        .select("*")
+        .select(JOBS_COLUMNS)
         .eq("client_id", userId)
         .eq("status", "completed")
         .order("completed_at", { ascending: false })

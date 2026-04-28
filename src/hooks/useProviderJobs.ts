@@ -22,11 +22,13 @@ export function useProviderJobs(userId: string | undefined): UseProviderJobsRetu
       return;
     }
 
+    const JOBS_COLUMNS = "id,client_id,provider_id,category,status,description,images,started_at,completed_at,created_at,updated_at";
+
     async function fetch() {
       // Check for active job first
       const { data } = await supabase
         .from("jobs")
-        .select("*")
+        .select(JOBS_COLUMNS)
         .eq("provider_id", userId)
         .in("status", ACTIVE_STATUSES)
         .order("updated_at", { ascending: false })
@@ -42,7 +44,7 @@ export function useProviderJobs(userId: string | undefined): UseProviderJobsRetu
       // Check for completed job pending review
       const { data: completed } = await supabase
         .from("jobs")
-        .select("*")
+        .select(JOBS_COLUMNS)
         .eq("provider_id", userId)
         .eq("status", "completed")
         .order("completed_at", { ascending: false })
