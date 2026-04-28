@@ -14,6 +14,9 @@ import {
   LogOut,
   CheckCircle,
   Clock,
+  MapPin,
+  Loader2,
+  WifiOff,
 } from "lucide-react";
 
 export function ProviderDashboard() {
@@ -21,6 +24,65 @@ export function ProviderDashboard() {
   const { activeJob, advanceStatus, submitReview, dismissCompletedJob } = useProviderJobs(user?.id);
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+
+  // Load current online status on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("provider_profiles")
+      .select("is_online")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setIsOnline(data.is_online ?? false);
+      });
+  }, [user?.id]);
+
+  const handleToggleOnline = async () => {
+    if (!user?.id) return;
+    setOnlineLoading(true);
+
+    if (isOnline) {
+      // Go offline
+      await supabase
+        .from("provider_profiles")
+        .update({ is_online: false })
+        .eq("id", user.id);
+      setIsOnline(false);
+      setLocationLabel(null);
+    } else {
+      // Go online — capture GPS first
+      try {
+        const coords = await new Promise<GeolocationCoordinates>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(
+            (p) => resolve(p.coords),
+            reject,
+            { timeout: 10000, maximumAge: 60000 }
+          )
+        );
+        const point = `SRID=4326;POINT(${coords.longitude} ${coords.latitude})`;
+        await supabase
+          .from("provider_profiles")
+          .update({ is_online: true, live_location: point })
+          .eq("id", user.id);
+        setIsOnline(true);
+        setLocationLabel(`${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`);
+      } catch {
+        // If GPS denied, go online without location
+        await supabase
+          .from("provider_profiles")
+          .update({ is_online: true })
+          .eq("id", user.id);
+        setIsOnline(true);
+        setLocationLabel(null);
+      }
+    }
+
+    setOnlineLoading(false);
+  };
 
   // Live stats
   const [completedCount, setCompletedCount] = useState(0);
@@ -126,6 +188,53 @@ export function ProviderDashboard() {
             )}
           </div>
         </div>
+
+        {/* Online / Offline Toggle */}
+        {providerStatus === "approved" && (
+          <div className={`mt-6 rounded-2xl border p-5 flex items-center justify-between gap-4 transition-all ${
+            isOnline
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-white border-gray-200"
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                isOnline ? "bg-emerald-100" : "bg-gray-100"
+              }`}>
+                {isOnline
+                  ? <MapPin size={18} className="text-emerald-600" />
+                  : <WifiOff size={18} className="text-gray-400" />
+                }
+              </div>
+              <div>
+                <p className={`font-semibold text-sm ${isOnline ? "text-emerald-800" : "text-gray-700"}`}>
+                  {isOnline ? "You are Online" : "You are Offline"}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {isOnline
+                    ? locationLabel
+                      ? `Location recorded · ${locationLabel}`
+                      : "Visible to clients — location not recorded"
+                    : "Go online to receive job requests"}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleToggleOnline}
+              disabled={onlineLoading}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer border-none disabled:opacity-60 ${
+                isOnline
+                  ? "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                  : "bg-cobalt text-white hover:bg-cobalt-dark shadow-sm shadow-cobalt/30"
+              }`}
+            >
+              {onlineLoading
+                ? <><Loader2 size={15} className="animate-spin" /> Working…</>
+                : isOnline ? "Go Offline" : "Go Online"
+              }
+            </button>
+          </div>
+        )}
 
         {/* Quick Stats */}
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
