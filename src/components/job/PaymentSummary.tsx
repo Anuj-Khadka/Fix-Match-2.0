@@ -123,7 +123,7 @@ export function PaymentSummary({ startedAt, completedAt, baseRate, providerName,
             sub
           />
           <Row
-            label="Tax (6.65%)"
+            label="Tax (6.625%)"
             value={fmt(tax)}
             sub
           />
