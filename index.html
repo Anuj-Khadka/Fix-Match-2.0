@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <title>fixmatch</title>
+    <script>
+      // Restore path after 404.html redirect
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+        var q = new URLSearchParams(location.search).get('p');
+        if (q) {
+          history.replaceState(null, null,
+            location.pathname.split('/').slice(0, 2).join('/') + '/' +
+            q.replace(/~and~/g, '&') + location.hash
+          );
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/Fix-Match-2.0/assets/index-CZtE11Z0.js"></script>
+    <link rel="stylesheet" crossorigin href="/Fix-Match-2.0/assets/index-DFCYBfN1.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
