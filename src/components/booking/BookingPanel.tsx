@@ -3,6 +3,7 @@ import { StepHero } from "./StepHero";
 import { StepServiceSelect } from "./StepServiceSelect";
 import { StepDescription } from "./StepDescription";
 import { StepLocation } from "./StepLocation";
+import { StepSchedule, type ScheduleType } from "./StepSchedule";
 import { StepCheckpoint } from "./StepCheckpoint";
 import type { JobCategory } from "../../hooks/useJobs";
 
@@ -14,6 +15,8 @@ export interface BookingData {
   lat: number | null;
   lng: number | null;
   address: string;
+  scheduleType: ScheduleType | null;
+  scheduledAt: string | null;
 }
 
 interface CategoryItem {
@@ -73,7 +76,7 @@ export function BookingPanel({
       )}
 
       {/* Step container */}
-      <div className={`relative min-h-[400px] ${step === 4 ? "overflow-visible" : "overflow-hidden"}`}>
+      <div className={`relative min-h-[400px] ${step === 4 || step === 5 ? "overflow-visible" : "overflow-hidden"}`}>
         {/* Step 0 — Hero */}
         <div className={`absolute inset-0 p-6 flex items-center justify-center transition-all duration-300 ease-in-out ${stepClass(0)}`}>
           <StepHero onStart={() => setStep(1)} />
@@ -120,13 +123,25 @@ export function BookingPanel({
           />
         </div>
 
-        {/* Step 4 — Review & Confirm */}
-        <div className={`${step === 4 ? "relative p-6 flex items-center justify-center" : "absolute inset-0 p-6 flex items-center justify-center"} transition-all duration-300 ease-in-out ${stepClass(4)}`}>
+        {/* Step 4 — Schedule */}
+        <div className={`${step === 4 ? "relative p-6 flex flex-col" : "absolute inset-0 p-6 flex flex-col"} transition-all duration-300 ease-in-out ${stepClass(4)}`}>
+          <StepSchedule
+            scheduleType={data.scheduleType}
+            scheduledAt={data.scheduledAt}
+            onChange={(type, at) => setData((d) => ({ ...d, scheduleType: type, scheduledAt: at }))}
+            onNext={() => setStep(5)}
+          />
+        </div>
+
+        {/* Step 5 — Review & Confirm */}
+        <div className={`${step === 5 ? "relative p-6 flex items-center justify-center" : "absolute inset-0 p-6 flex items-center justify-center"} transition-all duration-300 ease-in-out ${stepClass(5)}`}>
           <StepCheckpoint
             category={data.category}
             description={data.description}
             address={data.address}
             imageCount={data.images.length}
+            scheduleType={data.scheduleType}
+            scheduledAt={data.scheduledAt}
             onConfirm={onFindProviders}
             submitting={findingProviders}
             error={submitError}

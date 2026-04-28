@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Wrench,
   Zap,
@@ -11,6 +11,9 @@ import {
   FileText,
   Eye,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
 } from "lucide-react";
 
 interface Props {
@@ -20,6 +23,7 @@ interface Props {
   images: string[];
   locationLat: number | null;
   locationLng: number | null;
+  scheduledAt: string | null;
   accepting: boolean;
   acceptError: string | null;
   onAccept: () => void;
@@ -38,6 +42,13 @@ const CATEGORY_META: Record<
 
 const COUNTDOWN_SECONDS = 30;
 
+function formatScheduled(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: "short", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
 export function JobAlertModal({
   jobId,
   category,
@@ -45,6 +56,7 @@ export function JobAlertModal({
   images,
   locationLat,
   locationLng,
+  scheduledAt,
   accepting,
   acceptError,
   onAccept,
@@ -53,6 +65,25 @@ export function JobAlertModal({
 }: Props) {
   const [phase, setPhase] = useState<"alert" | "review">("alert");
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const prevImage = useCallback(() =>
+    setLightboxIndex((i) => (i !== null ? (i - 1 + images.length) % images.length : null)), [images.length]);
+  const nextImage = useCallback(() =>
+    setLightboxIndex((i) => (i !== null ? (i + 1) % images.length : null)), [images.length]);
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowLeft") prevImage();
+      if (e.key === "ArrowRight") nextImage();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxIndex, closeLightbox, prevImage, nextImage]);
 
   const meta = CATEGORY_META[category] ?? {
     label: category,
@@ -134,6 +165,15 @@ export function JobAlertModal({
                   <span className="text-sm text-gray-600">
                     {images.length} photo{images.length > 1 ? "s" : ""} attached — review to see them
                   </span>
+                </div>
+              )}
+              {scheduledAt && (
+                <div className="flex items-center gap-2.5 rounded-xl bg-cobalt/5 border border-cobalt/20 px-4 py-3">
+                  <Calendar size={15} className="text-cobalt shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-cobalt">Scheduled job</p>
+                    <p className="text-sm text-gray-700">{formatScheduled(scheduledAt)}</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -218,6 +258,17 @@ export function JobAlertModal({
             </div>
           )}
 
+          {/* Scheduled time */}
+          {scheduledAt && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Scheduled For</p>
+              <div className="flex items-center gap-2.5 rounded-xl bg-cobalt/5 border border-cobalt/20 px-4 py-3">
+                <Calendar size={15} className="text-cobalt shrink-0" />
+                <span className="text-sm font-semibold text-cobalt">{formatScheduled(scheduledAt)}</span>
+              </div>
+            </div>
+          )}
+
           {/* Photos */}
           {images.length > 0 && (
             <div>
@@ -226,13 +277,17 @@ export function JobAlertModal({
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {images.map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-xl border border-gray-100">
+                  <button
+                    key={i}
+                    onClick={() => setLightboxIndex(i)}
+                    className="block aspect-square overflow-hidden rounded-xl border border-gray-100 cursor-zoom-in p-0 bg-transparent"
+                  >
                     <img
                       src={url}
                       alt={`Job photo ${i + 1}`}
                       className="h-full w-full object-cover transition hover:scale-105"
                     />
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -274,6 +329,57 @@ export function JobAlertModal({
           </button>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90"
+          onClick={closeLightbox}
+        >
+          {/* Close */}
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition border-none cursor-pointer"
+          >
+            <X size={20} className="text-white" />
+          </button>
+
+          {/* Counter */}
+          {images.length > 1 && (
+            <p className="absolute top-5 left-1/2 -translate-x-1/2 text-xs font-semibold text-white/60">
+              {lightboxIndex + 1} / {images.length}
+            </p>
+          )}
+
+          {/* Prev */}
+          {images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); prevImage(); }}
+              className="absolute left-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition border-none cursor-pointer"
+            >
+              <ChevronLeft size={22} className="text-white" />
+            </button>
+          )}
+
+          {/* Image */}
+          <img
+            src={images[lightboxIndex]}
+            alt={`Job photo ${lightboxIndex + 1}`}
+            className="max-h-[85vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Next */}
+          {images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); nextImage(); }}
+              className="absolute right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition border-none cursor-pointer"
+            >
+              <ChevronRight size={22} className="text-white" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

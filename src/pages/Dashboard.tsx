@@ -24,6 +24,7 @@ import { RatingModal } from "../components/job/RatingModal";
 import { supabase } from "../lib/supabase";
 import { BookingPanel, type BookingData } from "../components/booking/BookingPanel";
 import { StepProviderSelect, type NearbyProvider } from "../components/booking/StepProviderSelect";
+import { PaymentSummary } from "../components/job/PaymentSummary";
 
 /* ------------------------------------------------------------------ */
 /*  Category config                                                     */
@@ -62,6 +63,8 @@ export function Dashboard() {
     lat: null,
     lng: null,
     address: "",
+    scheduleType: null,
+    scheduledAt: null,
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -109,7 +112,7 @@ export function Dashboard() {
       }
     }
 
-    setBookingStep(5);
+    setBookingStep(6);
   };
 
   /* ── Provider selected: create job (first time) then broadcast ── */
@@ -142,6 +145,7 @@ export function Dashboard() {
           lng: bookingData.lng!,
           description: bookingData.description || undefined,
           images: jobImages,
+          scheduledAt: bookingData.scheduledAt || null,
         });
         if (!result) return;
         jobId = result.id;
@@ -176,6 +180,7 @@ export function Dashboard() {
             images: jobImages,
             location_lat: coords?.lat ?? null,
             location_lng: coords?.lng ?? null,
+            scheduled_at: bookingData.scheduledAt || null,
           },
         });
         setTimeout(() => supabase.removeChannel(ch), 1000);
@@ -190,6 +195,7 @@ export function Dashboard() {
     setDeclineMessage(null);
     setSubmitError(null);
     setBookingStep(0);
+    setPaymentDone(false);
     setBookingData({
       category: null,
       description: "",
@@ -198,6 +204,8 @@ export function Dashboard() {
       lat: null,
       lng: null,
       address: "",
+      scheduleType: null,
+      scheduledAt: null,
     });
   };
 
@@ -209,6 +217,7 @@ export function Dashboard() {
 
   const userInitial = (user?.email?.[0] ?? "U").toUpperCase();
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [paymentDone, setPaymentDone] = useState(false);
   const activeJob = jobs.activeJob;
   const activeStatus = activeJob?.status;
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
@@ -423,8 +432,18 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* Completed — Rating Modal */}
-          {activeJob && activeStatus === "completed" && (
+          {/* Completed — Payment Summary → Rating Modal */}
+          {activeJob && activeStatus === "completed" && !paymentDone && (
+            <PaymentSummary
+              startedAt={activeJob.started_at}
+              completedAt={activeJob.completed_at}
+              baseRate={providerInfo?.base_rate ?? null}
+              providerName={providerInfo?.full_name ?? null}
+              onConfirm={() => setPaymentDone(true)}
+            />
+          )}
+
+          {activeJob && activeStatus === "completed" && paymentDone && (
             <RatingModal
               roleLabel="your pro"
               submitting={reviewSubmitting}
@@ -439,8 +458,31 @@ export function Dashboard() {
             />
           )}
 
-          {/* Booking Funnel — steps 0-4 */}
-          {!activeJob && bookingStep < 5 && (
+          {/* Searching fallback — shown on refresh when bookingStep was reset but job is still searching */}
+          {activeJob && activeStatus === "searching" && bookingStep < 6 && (
+            <div
+              className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-cobalt/20 shadow-xl shadow-cobalt/5 p-6 text-center space-y-4"
+              style={{ animation: "fade-in-up 0.4s ease-out both" }}
+            >
+              <div className="w-12 h-12 rounded-full bg-cobalt/10 flex items-center justify-center mx-auto">
+                <Loader2 size={24} className="text-cobalt animate-spin" />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Searching for your pro…</p>
+                <p className="text-sm text-gray-500 mt-1 capitalize">{activeJob.category} service requested</p>
+              </div>
+              <button
+                onClick={handleCancelJob}
+                disabled={jobs.loading}
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-100 transition cursor-pointer disabled:opacity-40"
+              >
+                {jobs.loading ? <Loader2 size={15} className="animate-spin" /> : "Cancel Request"}
+              </button>
+            </div>
+          )}
+
+          {/* Booking Funnel — steps 0-5 */}
+          {!activeJob && bookingStep < 6 && (
             <div
               className="mx-auto mt-10 flex justify-center"
               style={{ animation: "fade-in-up 0.7s ease-out 0.3s both" }}
@@ -461,8 +503,8 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* Provider Browse — step 5, shown before AND while job is searching */}
-          {bookingStep === 5 && (!activeJob || activeJob.status === "searching") && bookingData.lat && bookingData.lng && bookingData.category && (
+          {/* Provider Browse — step 6, shown before AND while job is searching */}
+          {bookingStep === 6 && (!activeJob || activeJob.status === "searching") && bookingData.lat && bookingData.lng && bookingData.category && (
             <div
               className="mx-auto mt-10 flex justify-center"
               style={{ animation: "fade-in-up 0.4s ease-out both" }}

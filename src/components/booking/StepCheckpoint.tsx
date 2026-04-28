@@ -1,14 +1,24 @@
-import { CheckCircle, MapPin, FileText, Image, Loader2, AlertCircle, Search } from "lucide-react";
+import { CheckCircle, MapPin, FileText, Image, Loader2, AlertCircle, Search, Zap, Calendar } from "lucide-react";
 import type { JobCategory } from "../../hooks/useJobs";
+import type { ScheduleType } from "./StepSchedule";
 
 interface Props {
   category: JobCategory | null;
   description: string;
   address: string;
   imageCount: number;
+  scheduleType: ScheduleType | null;
+  scheduledAt: string | null;
   onConfirm: () => void;
   submitting: boolean;
   error: string | null;
+}
+
+function formatScheduled(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: "short", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
 }
 
 export function StepCheckpoint({
@@ -16,6 +26,8 @@ export function StepCheckpoint({
   description,
   address,
   imageCount,
+  scheduleType,
+  scheduledAt,
   onConfirm,
   submitting,
   error,
@@ -77,6 +89,24 @@ export function StepCheckpoint({
             <div>
               <p className="text-xs text-gray-400">Photos</p>
               <p className="text-sm font-semibold text-gray-900">{imageCount} attached</p>
+            </div>
+          </div>
+        )}
+
+        {scheduleType && (
+          <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
+            <div className="w-8 h-8 rounded-lg bg-cobalt/10 flex items-center justify-center shrink-0">
+              {scheduleType === "instant"
+                ? <Zap size={16} className="text-cobalt" />
+                : <Calendar size={16} className="text-cobalt" />}
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Timing</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {scheduleType === "instant"
+                  ? "Get help now"
+                  : scheduledAt ? formatScheduled(scheduledAt) : "Scheduled"}
+              </p>
             </div>
           </div>
         )}

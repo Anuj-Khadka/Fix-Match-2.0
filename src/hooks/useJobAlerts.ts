@@ -8,6 +8,7 @@ interface JobAlert {
   images: string[];
   location_lat: number | null;
   location_lng: number | null;
+  scheduled_at: string | null;
 }
 
 interface UseJobAlertsReturn {

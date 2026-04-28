@@ -23,6 +23,7 @@ export function JobListener({ children }: Props) {
           images={currentAlert.images}
           locationLat={currentAlert.location_lat}
           locationLng={currentAlert.location_lng}
+          scheduledAt={currentAlert.scheduled_at}
           accepting={accepting}
           acceptError={acceptError}
           onAccept={acceptJob}

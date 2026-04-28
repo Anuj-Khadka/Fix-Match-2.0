@@ -25,6 +25,7 @@ export interface Job {
   images?: string[];
   started_at: string | null;
   completed_at: string | null;
+  scheduled_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +38,7 @@ export interface ProviderInfo {
   business_name: string | null;
   avg_rating: number | null;
   total_reviews: number;
+  base_rate: number | null;
 }
 
 interface UseJobsReturn {
@@ -50,6 +52,7 @@ interface UseJobsReturn {
     lng: number;
     description?: string;
     images?: string[];
+    scheduledAt?: string | null;
   }) => Promise<{ id: string } | null>;
   cancelJob: () => Promise<void>;
   submitReview: (rating: number, comment: string) => Promise<{ success: boolean; error?: string }>;
@@ -81,7 +84,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
 
       const { data: provProfile } = await supabase
         .from("provider_profiles")
-        .select("business_name")
+        .select("business_name, base_rate")
         .eq("id", pid)
         .maybeSingle();
 
@@ -102,6 +105,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
         business_name: provProfile?.business_name ?? null,
         avg_rating: avg ? Math.round(avg * 10) / 10 : null,
         total_reviews: ratings.length,
+        base_rate: provProfile?.base_rate ?? null,
       });
     }
 
@@ -114,7 +118,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
 
     async function fetchActive() {
       // First check for active jobs
-      const JOBS_COLUMNS = "id,client_id,provider_id,category,status,description,images,started_at,completed_at,created_at,updated_at";
+      const JOBS_COLUMNS = "id,client_id,provider_id,category,status,description,images,started_at,completed_at,scheduled_at,created_at,updated_at";
 
       const { data } = await supabase
         .from("jobs")
@@ -141,7 +145,11 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
         .maybeSingle();
 
       if (completed) {
-        // Check if already reviewed
+        // Skip if user already dismissed this job's review prompt
+        const dismissed = JSON.parse(localStorage.getItem("dismissed_reviews") ?? "[]") as string[];
+        if (dismissed.includes(completed.id)) return;
+
+        // Check if already reviewed in DB
         const { data: review } = await supabase
           .from("reviews")
           .select("id")
@@ -196,6 +204,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       lng: number;
       description?: string;
       images?: string[];
+      scheduledAt?: string | null;
     }): Promise<{ id: string } | null> => {
       if (!userId) return null;
       setLoading(true);
@@ -213,11 +222,14 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       if (params.images && params.images.length > 0) {
         row.images = params.images;
       }
+      if (params.scheduledAt) {
+        row.scheduled_at = params.scheduledAt;
+      }
 
       const { data, error: insertErr } = await supabase
         .from("jobs")
         .insert(row)
-        .select("id,client_id,provider_id,category,status,description,images,started_at,completed_at,created_at,updated_at")
+        .select("id,client_id,provider_id,category,status,description,images,started_at,completed_at,scheduled_at,created_at,updated_at")
         .single();
 
       setLoading(false);
@@ -270,8 +282,14 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
   );
 
   const dismissCompletedJob = useCallback(() => {
+    if (activeJob) {
+      const dismissed = JSON.parse(localStorage.getItem("dismissed_reviews") ?? "[]") as string[];
+      if (!dismissed.includes(activeJob.id)) {
+        localStorage.setItem("dismissed_reviews", JSON.stringify([...dismissed, activeJob.id]));
+      }
+    }
     setActiveJob(null);
-  }, []);
+  }, [activeJob]);
 
   return { activeJob, providerInfo, loading, error, createJob, cancelJob, submitReview, dismissCompletedJob };
 }

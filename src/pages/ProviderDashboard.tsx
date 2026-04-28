@@ -7,6 +7,7 @@ import { ActiveJobCard } from "../components/job/ActiveJobCard";
 import { RatingModal } from "../components/job/RatingModal";
 import { JobListener } from "../components/provider/JobListener";
 import { supabase } from "../lib/supabase";
+import type { Job } from "../hooks/useJobs";
 import {
   Wrench,
   Zap,
@@ -18,13 +19,19 @@ import {
   MapPin,
   Loader2,
   WifiOff,
+  Calendar,
+  ArrowLeft,
+  Briefcase,
 } from "lucide-react";
 
 export function ProviderDashboard() {
   const { user, role, providerStatus } = useAuth();
-  const { activeJob, advanceStatus, submitReview, dismissCompletedJob } = useProviderJobs(user?.id);
+  const { activeJob, scheduledJobs, advanceStatus, advanceJobStatus, submitReview, dismissCompletedJob } = useProviderJobs(user?.id);
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [jobTab, setJobTab] = useState<"current" | "scheduled">("current");
+  const [selectedScheduledJob, setSelectedScheduledJob] = useState<Job | null>(null);
+  const selectedElapsed = useElapsedTime(selectedScheduledJob?.started_at ?? null);
   const [isOnline, setIsOnline] = useState(false);
   const [onlineLoading, setOnlineLoading] = useState(false);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
@@ -84,6 +91,16 @@ export function ProviderDashboard() {
 
     setOnlineLoading(false);
   };
+
+  // When a selected scheduled job moves out of scheduledJobs (started), switch to current tab
+  useEffect(() => {
+    if (!selectedScheduledJob) return;
+    const stillScheduled = scheduledJobs.find((j) => j.id === selectedScheduledJob.id);
+    if (!stillScheduled) {
+      setSelectedScheduledJob(null);
+      setJobTab("current");
+    }
+  }, [scheduledJobs, selectedScheduledJob]);
 
   // Live stats
   const [completedCount, setCompletedCount] = useState(0);
@@ -305,32 +322,133 @@ export function ProviderDashboard() {
           </div>
         </div>
 
-        {/* Active Job / Rating / Placeholder */}
+        {/* Jobs section with tabs */}
         <div className="mt-10">
-          <h2 className="text-lg font-semibold">Current Job</h2>
+          {/* Tab headers */}
+          <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+            <button
+              onClick={() => setJobTab("current")}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition cursor-pointer border-none ${
+                jobTab === "current"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "bg-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Current Job
+            </button>
+            <button
+              onClick={() => setJobTab("scheduled")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition cursor-pointer border-none ${
+                jobTab === "scheduled"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "bg-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Scheduled
+              {scheduledJobs.length > 0 && (
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
+                  jobTab === "scheduled" ? "bg-cobalt text-white" : "bg-cobalt/20 text-cobalt"
+                }`}>
+                  {scheduledJobs.length}
+                </span>
+              )}
+            </button>
+          </div>
 
-          {activeJob && activeJob.status !== "completed" ? (
-            <ActiveJobCard job={activeJob} onAdvance={advanceStatus} elapsed={elapsed} />
-          ) : activeJob && activeJob.status === "completed" ? (
-            <RatingModal
-              roleLabel="your client"
-              submitting={reviewSubmitting}
-              onSubmit={async (rating, comment) => {
-                setReviewSubmitting(true);
-                await submitReview(rating, comment);
-                setReviewSubmitting(false);
-                dismissCompletedJob();
-              }}
-              onDismiss={dismissCompletedJob}
-            />
-          ) : (
-            <div className="mt-4 rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
-              <Clock size={32} className="mx-auto text-gray-300" />
-              <h3 className="mt-4 font-semibold text-gray-400">No incoming jobs yet</h3>
-              <p className="mt-1 text-sm text-gray-400">
-                When a client requests your service, it will appear here.
-              </p>
-            </div>
+          {/* Current Job tab */}
+          {jobTab === "current" && (
+            <>
+              {activeJob && activeJob.status !== "completed" ? (
+                <ActiveJobCard job={activeJob} onAdvance={advanceStatus} elapsed={elapsed} />
+              ) : activeJob && activeJob.status === "completed" ? (
+                <RatingModal
+                  roleLabel="your client"
+                  submitting={reviewSubmitting}
+                  onSubmit={async (rating, comment) => {
+                    setReviewSubmitting(true);
+                    await submitReview(rating, comment);
+                    setReviewSubmitting(false);
+                    dismissCompletedJob();
+                  }}
+                  onDismiss={dismissCompletedJob}
+                />
+              ) : (
+                <div className="mt-4 rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
+                  <Clock size={32} className="mx-auto text-gray-300" />
+                  <h3 className="mt-4 font-semibold text-gray-400">No incoming jobs yet</h3>
+                  <p className="mt-1 text-sm text-gray-400">
+                    When a client requests your service, it will appear here.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Scheduled tab */}
+          {jobTab === "scheduled" && (
+            <>
+              {selectedScheduledJob ? (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setSelectedScheduledJob(null)}
+                    className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-cobalt transition cursor-pointer bg-transparent border-none mb-4"
+                  >
+                    <ArrowLeft size={15} /> Back to scheduled
+                  </button>
+                  <ActiveJobCard
+                    job={selectedScheduledJob}
+                    onAdvance={(ns) => advanceJobStatus(selectedScheduledJob.id, ns)}
+                    elapsed={selectedElapsed}
+                  />
+                </div>
+              ) : scheduledJobs.length === 0 ? (
+                <div className="mt-4 rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
+                  <Calendar size={32} className="mx-auto text-gray-300" />
+                  <h3 className="mt-4 font-semibold text-gray-400">No scheduled jobs</h3>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Accepted scheduled jobs will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {scheduledJobs.map((job) => (
+                    <button
+                      key={job.id}
+                      onClick={() => setSelectedScheduledJob(job)}
+                      className="w-full text-left rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:border-cobalt/30 hover:shadow-md transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cobalt/10 shrink-0">
+                          <Briefcase size={20} className="text-cobalt" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-gray-900 capitalize">{job.category}</p>
+                            <span className="rounded-full bg-cobalt/10 px-2 py-0.5 text-xs font-semibold text-cobalt">
+                              Scheduled
+                            </span>
+                          </div>
+                          {job.description && (
+                            <p className="mt-0.5 text-sm text-gray-500 truncate">{job.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      {job.scheduled_at && (
+                        <div className="mt-3 flex items-center gap-2 rounded-xl bg-cobalt/5 px-3 py-2">
+                          <Calendar size={14} className="text-cobalt shrink-0" />
+                          <span className="text-sm font-semibold text-cobalt">
+                            {new Date(job.scheduled_at).toLocaleString(undefined, {
+                              weekday: "short", month: "short", day: "numeric",
+                              hour: "numeric", minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
