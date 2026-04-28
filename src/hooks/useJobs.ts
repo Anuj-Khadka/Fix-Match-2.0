@@ -49,7 +49,7 @@ interface UseJobsReturn {
     lng: number;
     description?: string;
     images?: string[];
-  }) => Promise<void>;
+  }) => Promise<{ id: string } | null>;
   cancelJob: () => Promise<void>;
   submitReview: (rating: number, comment: string) => Promise<{ success: boolean; error?: string }>;
   dismissCompletedJob: () => void;
@@ -195,8 +195,8 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       lng: number;
       description?: string;
       images?: string[];
-    }) => {
-      if (!userId) return;
+    }): Promise<{ id: string } | null> => {
+      if (!userId) return null;
       setLoading(true);
       setError(null);
 
@@ -216,17 +216,18 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
       const { data, error: insertErr } = await supabase
         .from("jobs")
         .insert(row)
-        .select()
+        .select("id,client_id,provider_id,category,status,description,images,started_at,completed_at,created_at,updated_at")
         .single();
 
       setLoading(false);
 
       if (insertErr) {
         setError(insertErr.message);
-        return;
+        throw new Error(insertErr.message);
       }
 
       setActiveJob(data as Job);
+      return { id: (data as Job).id };
     },
     [userId],
   );

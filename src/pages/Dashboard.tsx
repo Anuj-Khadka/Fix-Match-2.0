@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Wrench,
@@ -18,12 +18,12 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useJobs, type JobCategory } from "../hooks/useJobs";
-import { useDispatch } from "../hooks/useDispatch";
 import { useElapsedTime } from "../hooks/useElapsedTime";
 import { JobProgressStepper } from "../components/job/JobProgressStepper";
 import { RatingModal } from "../components/job/RatingModal";
 import { supabase } from "../lib/supabase";
 import { BookingPanel, type BookingData } from "../components/booking/BookingPanel";
+import { StepProviderSelect, type NearbyProvider } from "../components/booking/StepProviderSelect";
 
 /* ------------------------------------------------------------------ */
 /*  Category config                                                     */
@@ -65,6 +65,10 @@ export function Dashboard() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [findingProviders, setFindingProviders] = useState(false);
+  const [pendingProviderId, setPendingProviderId] = useState<string | null>(null);
+  const [declinedProviderIds, setDeclinedProviderIds] = useState<string[]>([]);
+  const [declineMessage, setDeclineMessage] = useState<string | null>(null);
   const lastJobCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const handleSignOut = () => {
@@ -72,24 +76,19 @@ export function Dashboard() {
     supabase.auth.signOut();
   };
 
-  /* ── Submit job with image uploads ── */
-  const handleSubmitJob = async () => {
-    if (!user || !bookingData.category) return;
-    setSubmitting(true);
+  /* ── Step 3 → 4: geocode if needed, then show provider list ── */
+  const handleFindProviders = async () => {
     setSubmitError(null);
+    let lat = bookingData.lat;
+    let lng = bookingData.lng;
 
-    try {
-      // 0. Resolve coordinates — geocode the typed address if needed
-      let lat = bookingData.lat;
-      let lng = bookingData.lng;
-
-      if (!lat || !lng) {
-        if (!bookingData.address.trim()) {
-          setSubmitError("Please enter an address or use your current location.");
-          setSubmitting(false);
-          return;
-        }
-        // Forward-geocode the typed address via Nominatim
+    if (!lat || !lng) {
+      if (!bookingData.address.trim()) {
+        setSubmitError("Please enter an address or use your current location.");
+        return;
+      }
+      setFindingProviders(true);
+      try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(bookingData.address)}&limit=1`
         );
@@ -97,59 +96,109 @@ export function Dashboard() {
         if (results.length > 0) {
           lat = parseFloat(results[0].lat);
           lng = parseFloat(results[0].lon);
+          setBookingData((d) => ({ ...d, lat, lng }));
         } else {
           setSubmitError("Could not find that address. Please try a more specific address or use your current location.");
-          setSubmitting(false);
           return;
         }
+      } catch {
+        setSubmitError("Could not resolve address. Please try again.");
+        return;
+      } finally {
+        setFindingProviders(false);
       }
-
-      // 1. Upload images to job-images bucket
-      const imageUrls: string[] = [];
-      const jobId = crypto.randomUUID();
-
-      for (const file of bookingData.images) {
-        const path = `${user.id}/${jobId}/${file.name}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("job-images")
-          .upload(path, file);
-
-        if (uploadErr) throw new Error(`Image upload failed: ${uploadErr.message}`);
-
-        const { data: urlData } = supabase.storage
-          .from("job-images")
-          .getPublicUrl(path);
-        imageUrls.push(urlData.publicUrl);
-      }
-
-      // 2. Save coordinates for dispatch before reset
-      lastJobCoordsRef.current = { lat, lng };
-
-      // 3. Create the job
-      await jobs.createJob({
-        category: bookingData.category,
-        lat,
-        lng,
-        description: bookingData.description || undefined,
-        images: imageUrls,
-      });
-
-      // 3. Reset funnel
-      setBookingStep(0);
-      setBookingData({
-        category: null,
-        description: "",
-        images: [],
-        imagePreviews: [],
-        lat: null,
-        lng: null,
-        address: "",
-      });
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setSubmitting(false);
     }
+
+    setBookingStep(4);
+  };
+
+  /* ── Provider selected: create job (first time) then broadcast ── */
+  const handleSelectProvider = async (provider: NearbyProvider) => {
+    if (!user || !bookingData.category) return;
+    setDeclineMessage(null);
+
+    let jobId: string;
+
+    if (!jobs.activeJob) {
+      // First request — upload images and create the job
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        const imageUrls: string[] = [];
+        const tempId = crypto.randomUUID();
+        for (const file of bookingData.images) {
+          const path = `${user.id}/${tempId}/${file.name}`;
+          const { error: uploadErr } = await supabase.storage
+            .from("job-images")
+            .upload(path, file);
+          if (uploadErr) throw new Error(`Image upload failed: ${uploadErr.message}`);
+          const { data: urlData } = supabase.storage.from("job-images").getPublicUrl(path);
+          imageUrls.push(urlData.publicUrl);
+        }
+
+        const result = await jobs.createJob({
+          category: bookingData.category,
+          lat: bookingData.lat!,
+          lng: bookingData.lng!,
+          description: bookingData.description || undefined,
+          images: imageUrls,
+        });
+        if (!result) return;
+        jobId = result.id;
+        lastJobCoordsRef.current = { lat: bookingData.lat!, lng: bookingData.lng! };
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : "Something went wrong");
+        return;
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Re-request after decline — reuse the existing job
+      jobId = jobs.activeJob.id;
+    }
+
+    // Broadcast the job alert to the chosen provider only
+    setPendingProviderId(provider.id);
+    const coords = lastJobCoordsRef.current;
+    const ch = supabase.channel(`job_alerts:${provider.id}`, {
+      config: { broadcast: { self: false } },
+    });
+    ch.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        ch.send({
+          type: "broadcast",
+          event: "new_job",
+          payload: {
+            job_id: jobId,
+            category: bookingData.category,
+            description: bookingData.description || null,
+            images: [],
+            location_lat: coords?.lat ?? null,
+            location_lng: coords?.lng ?? null,
+          },
+        });
+        setTimeout(() => supabase.removeChannel(ch), 1000);
+      }
+    });
+  };
+
+  /* ── Cancel + full reset ── */
+  const handleCancelJob = async () => {
+    await jobs.cancelJob();
+    setPendingProviderId(null);
+    setDeclinedProviderIds([]);
+    setDeclineMessage(null);
+    setSubmitError(null);
+    setBookingStep(0);
+    setBookingData({
+      category: null,
+      description: "",
+      images: [],
+      imagePreviews: [],
+      lat: null,
+      lng: null,
+      address: "",
+    });
   };
 
   const userInitial = (user?.email?.[0] ?? "U").toUpperCase();
@@ -159,20 +208,21 @@ export function Dashboard() {
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
   const providerInfo = jobs.providerInfo;
 
-  // Sequential dispatch — only active while job is "searching"
-  const dispatch = useDispatch(
-    activeJob?.id ?? null,
-    activeStatus ?? null,
-    activeJob
-      ? {
-          category: activeJob.category,
-          description: activeJob.description,
-          images: activeJob.images ?? [],
-          lat: lastJobCoordsRef.current?.lat ?? null,
-          lng: lastJobCoordsRef.current?.lng ?? null,
-        }
-      : null,
-  );
+  // Listen for provider decline while job is searching
+  useEffect(() => {
+    if (!activeJob?.id || activeJob.status !== "searching" || !pendingProviderId) return;
+    const jobId = activeJob.id;
+    const declined = pendingProviderId;
+    const ch = supabase
+      .channel(`dispatch_response:${jobId}`)
+      .on("broadcast", { event: "declined" }, () => {
+        setDeclinedProviderIds((prev) => [...prev, declined]);
+        setPendingProviderId(null);
+        setDeclineMessage("That pro declined. Please choose another.");
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeJob?.id, activeJob?.status, pendingProviderId]);
 
   const STATUS_MESSAGES: Record<string, string> = {
     matched: "Your pro has accepted the job and will head to you shortly.",
@@ -381,57 +431,8 @@ export function Dashboard() {
             />
           )}
 
-          {activeJob && (activeStatus === "searching" || activeStatus === "accepted") && (
-            <div
-              className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-cobalt/20 shadow-xl shadow-cobalt/10 p-5 text-left space-y-3"
-              style={{ animation: "fade-in-up 0.4s ease-out both" }}
-            >
-              <div className="flex items-center gap-4">
-                <div className="relative w-12 h-12 shrink-0">
-                  <div className="absolute inset-0 rounded-full border-2 border-cobalt animate-ping opacity-30" />
-                  <div className="absolute inset-1 rounded-full border-2 border-cobalt opacity-20" />
-                  <div className="absolute inset-3 rounded-full bg-cobalt" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900">Searching for nearby Pros…</p>
-                  <p className="text-sm text-gray-500 mt-0.5 capitalize">
-                    {activeJob.category}&nbsp;·&nbsp;
-                    <span className="text-orange-500 font-semibold">{activeJob.status}</span>
-                  </p>
-                </div>
-                <button
-                  onClick={jobs.cancelJob}
-                  disabled={jobs.loading}
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-100 transition cursor-pointer disabled:opacity-40 shrink-0"
-                >
-                  {jobs.loading ? <Loader2 size={15} className="animate-spin" /> : "Cancel"}
-                </button>
-              </div>
-
-              {/* Dispatch progress */}
-              {dispatch.dispatching && dispatch.dispatchPhase === "sequential" && dispatch.currentTarget && (
-                <p className="text-xs text-gray-400">
-                  Contacting pro {dispatch.queuePosition} of {Math.min(3, dispatch.queueTotal)}
-                  {dispatch.currentTarget.full_name && (
-                    <span className="text-gray-500 font-medium"> — {dispatch.currentTarget.full_name}</span>
-                  )}
-                </p>
-              )}
-              {dispatch.dispatchPhase === "blast" && (
-                <p className="text-xs text-gray-400">
-                  Sending to all available pros in your area…
-                </p>
-              )}
-              {dispatch.dispatchPhase === "no_providers" && (
-                <p className="text-xs text-orange-500">
-                  No providers available right now. Your request is still active.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Booking Funnel Panel */}
-          {!activeJob && (
+          {/* Booking Funnel — steps 0-3 */}
+          {!activeJob && bookingStep < 4 && (
             <div
               className="mx-auto mt-10 flex justify-center"
               style={{ animation: "fade-in-up 0.7s ease-out 0.3s both" }}
@@ -445,9 +446,31 @@ export function Dashboard() {
                 requestPosition={requestPosition}
                 geoLoading={geoLoading}
                 geoError={geoError}
-                onSubmit={handleSubmitJob}
+                onFindProviders={handleFindProviders}
+                findingProviders={findingProviders}
+              />
+            </div>
+          )}
+
+          {/* Provider Browse — step 4, shown before AND while job is searching */}
+          {bookingStep === 4 && (!activeJob || activeJob.status === "searching") && bookingData.lat && bookingData.lng && bookingData.category && (
+            <div
+              className="mx-auto mt-10 flex justify-center"
+              style={{ animation: "fade-in-up 0.4s ease-out both" }}
+            >
+              <StepProviderSelect
+                category={bookingData.category}
+                lat={bookingData.lat}
+                lng={bookingData.lng}
+                pendingProviderId={pendingProviderId}
+                declinedProviderIds={declinedProviderIds}
+                declineMessage={declineMessage}
                 submitting={submitting}
                 submitError={submitError}
+                jobSearching={activeJob?.status === "searching"}
+                onRequestProvider={handleSelectProvider}
+                onBack={() => { setBookingStep(3); setSubmitError(null); }}
+                onCancel={handleCancelJob}
               />
             </div>
           )}

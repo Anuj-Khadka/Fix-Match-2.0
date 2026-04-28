@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Loader2, ArrowRight, LocateFixed } from "lucide-react";
+import { MapPin, Loader2, LocateFixed, Search } from "lucide-react";
 
 interface Props {
   address: string;
@@ -10,6 +10,7 @@ interface Props {
   geoError: string | null;
   onNext: () => void;
   canProceed: boolean;
+  nextLoading?: boolean;
 }
 
 export function StepLocation({
@@ -21,6 +22,7 @@ export function StepLocation({
   geoError,
   onNext,
   canProceed,
+  nextLoading,
 }: Props) {
   const [locating, setLocating] = useState(false);
 
@@ -85,13 +87,17 @@ export function StepLocation({
         </p>
       )}
 
-      {/* Next */}
+      {/* Find Providers */}
       <button
         onClick={onNext}
-        disabled={!canProceed}
+        disabled={!canProceed || nextLoading}
         className="mt-auto flex items-center justify-center gap-2 w-full rounded-2xl bg-cobalt py-3.5 text-sm font-semibold text-white shadow-lg shadow-cobalt/25 transition hover:bg-cobalt-dark hover:scale-[1.02] active:scale-[0.98] cursor-pointer border-none disabled:opacity-40"
       >
-        Next <ArrowRight size={16} />
+        {nextLoading ? (
+          <><Loader2 size={16} className="animate-spin" /> Finding providers…</>
+        ) : (
+          <><Search size={16} /> Find Providers</>
+        )}
       </button>
     </div>
   );

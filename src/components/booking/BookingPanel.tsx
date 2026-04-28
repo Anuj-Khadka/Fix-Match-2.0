@@ -3,7 +3,6 @@ import { StepHero } from "./StepHero";
 import { StepServiceSelect } from "./StepServiceSelect";
 import { StepDescription } from "./StepDescription";
 import { StepLocation } from "./StepLocation";
-import { StepCheckpoint } from "./StepCheckpoint";
 import type { JobCategory } from "../../hooks/useJobs";
 
 export interface BookingData {
@@ -34,9 +33,8 @@ interface Props {
   requestPosition: () => Promise<{ lat: number; lng: number }>;
   geoLoading: boolean;
   geoError: string | null;
-  onSubmit: () => void;
-  submitting: boolean;
-  submitError: string | null;
+  onFindProviders: () => void;
+  findingProviders: boolean;
 }
 
 export function BookingPanel({
@@ -48,9 +46,8 @@ export function BookingPanel({
   requestPosition,
   geoLoading,
   geoError,
-  onSubmit,
-  submitting,
-  submitError,
+  onFindProviders,
+  findingProviders,
 }: Props) {
   function stepClass(idx: number) {
     if (idx === step) return "translate-x-0 opacity-100";
@@ -73,7 +70,7 @@ export function BookingPanel({
       )}
 
       {/* Step container */}
-      <div className={`relative min-h-[400px] ${step === 4 ? "overflow-visible" : "overflow-hidden"}`}>
+      <div className="relative min-h-[400px] overflow-hidden">
         {/* Step 0 — Hero */}
         <div className={`absolute inset-0 p-6 flex items-center justify-center transition-all duration-300 ease-in-out ${stepClass(0)}`}>
           <StepHero onStart={() => setStep(1)} />
@@ -115,23 +112,9 @@ export function BookingPanel({
             requestPosition={requestPosition}
             geoLoading={geoLoading}
             geoError={geoError}
-            onNext={() => setStep(4)}
+            onNext={onFindProviders}
             canProceed={!!(data.address.trim() || (data.lat && data.lng))}
-          />
-        </div>
-
-        {/* Step 4 — Checkpoint */}
-        <div
-          className={`${step === 4 ? "relative p-6 flex items-center justify-center" : "absolute inset-0 p-6 flex items-center justify-center"} transition-all duration-300 ease-in-out ${stepClass(4)}`}
-        >
-          <StepCheckpoint
-            category={data.category}
-            description={data.description}
-            address={data.address}
-            imageCount={data.images.length}
-            onConfirm={onSubmit}
-            submitting={submitting}
-            error={submitError}
+            nextLoading={findingProviders}
           />
         </div>
       </div>
