@@ -8,6 +8,7 @@ const STEPS = [
 ];
 
 const STATUS_INDEX: Record<string, number> = {
+  reviewing: -1,
   matched: -1,
   en_route: 0,
   arrived: 1,

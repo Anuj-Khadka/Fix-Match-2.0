@@ -3,6 +3,7 @@ import { StepHero } from "./StepHero";
 import { StepServiceSelect } from "./StepServiceSelect";
 import { StepDescription } from "./StepDescription";
 import { StepLocation } from "./StepLocation";
+import { StepCheckpoint } from "./StepCheckpoint";
 import type { JobCategory } from "../../hooks/useJobs";
 
 export interface BookingData {
@@ -35,6 +36,7 @@ interface Props {
   geoError: string | null;
   onFindProviders: () => void;
   findingProviders: boolean;
+  submitError: string | null;
 }
 
 export function BookingPanel({
@@ -48,6 +50,7 @@ export function BookingPanel({
   geoError,
   onFindProviders,
   findingProviders,
+  submitError,
 }: Props) {
   function stepClass(idx: number) {
     if (idx === step) return "translate-x-0 opacity-100";
@@ -70,7 +73,7 @@ export function BookingPanel({
       )}
 
       {/* Step container */}
-      <div className="relative min-h-[400px] overflow-hidden">
+      <div className={`relative min-h-[400px] ${step === 4 ? "overflow-visible" : "overflow-hidden"}`}>
         {/* Step 0 — Hero */}
         <div className={`absolute inset-0 p-6 flex items-center justify-center transition-all duration-300 ease-in-out ${stepClass(0)}`}>
           <StepHero onStart={() => setStep(1)} />
@@ -112,9 +115,21 @@ export function BookingPanel({
             requestPosition={requestPosition}
             geoLoading={geoLoading}
             geoError={geoError}
-            onNext={onFindProviders}
+            onNext={() => setStep(4)}
             canProceed={!!(data.address.trim() || (data.lat && data.lng))}
-            nextLoading={findingProviders}
+          />
+        </div>
+
+        {/* Step 4 — Review & Confirm */}
+        <div className={`${step === 4 ? "relative p-6 flex items-center justify-center" : "absolute inset-0 p-6 flex items-center justify-center"} transition-all duration-300 ease-in-out ${stepClass(4)}`}>
+          <StepCheckpoint
+            category={data.category}
+            description={data.description}
+            address={data.address}
+            imageCount={data.images.length}
+            onConfirm={onFindProviders}
+            submitting={findingProviders}
+            error={submitError}
           />
         </div>
       </div>

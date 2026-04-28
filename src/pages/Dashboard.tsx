@@ -109,7 +109,7 @@ export function Dashboard() {
       }
     }
 
-    setBookingStep(4);
+    setBookingStep(5);
   };
 
   /* ── Provider selected: create job (first time) then broadcast ── */
@@ -118,13 +118,13 @@ export function Dashboard() {
     setDeclineMessage(null);
 
     let jobId: string;
+    let jobImages: string[] = [];
 
     if (!jobs.activeJob) {
       // First request — upload images and create the job
       setSubmitting(true);
       setSubmitError(null);
       try {
-        const imageUrls: string[] = [];
         const tempId = crypto.randomUUID();
         for (const file of bookingData.images) {
           const path = `${user.id}/${tempId}/${file.name}`;
@@ -133,7 +133,7 @@ export function Dashboard() {
             .upload(path, file);
           if (uploadErr) throw new Error(`Image upload failed: ${uploadErr.message}`);
           const { data: urlData } = supabase.storage.from("job-images").getPublicUrl(path);
-          imageUrls.push(urlData.publicUrl);
+          jobImages.push(urlData.publicUrl);
         }
 
         const result = await jobs.createJob({
@@ -141,7 +141,7 @@ export function Dashboard() {
           lat: bookingData.lat!,
           lng: bookingData.lng!,
           description: bookingData.description || undefined,
-          images: imageUrls,
+          images: jobImages,
         });
         if (!result) return;
         jobId = result.id;
@@ -155,6 +155,7 @@ export function Dashboard() {
     } else {
       // Re-request after decline — reuse the existing job
       jobId = jobs.activeJob.id;
+      jobImages = jobs.activeJob.images ?? [];
     }
 
     // Broadcast the job alert to the chosen provider only
@@ -172,7 +173,7 @@ export function Dashboard() {
             job_id: jobId,
             category: bookingData.category,
             description: bookingData.description || null,
-            images: [],
+            images: jobImages,
             location_lat: coords?.lat ?? null,
             location_lng: coords?.lng ?? null,
           },
@@ -182,9 +183,8 @@ export function Dashboard() {
     });
   };
 
-  /* ── Cancel + full reset ── */
-  const handleCancelJob = async () => {
-    await jobs.cancelJob();
+  /* ── Shared UI reset (no DB side-effects) ── */
+  const resetBookingUI = () => {
     setPendingProviderId(null);
     setDeclinedProviderIds([]);
     setDeclineMessage(null);
@@ -199,6 +199,12 @@ export function Dashboard() {
       lng: null,
       address: "",
     });
+  };
+
+  /* ── Cancel + full reset ── */
+  const handleCancelJob = async () => {
+    await jobs.cancelJob();
+    resetBookingUI();
   };
 
   const userInitial = (user?.email?.[0] ?? "U").toUpperCase();
@@ -225,6 +231,7 @@ export function Dashboard() {
   }, [activeJob?.id, activeJob?.status, pendingProviderId]);
 
   const STATUS_MESSAGES: Record<string, string> = {
+    reviewing: "Your provider is reviewing the job details · Est. 20 mins",
     matched: "Your pro has accepted the job and will head to you shortly.",
     en_route: "Your pro is on the way to your location.",
     arrived: "Your pro has arrived. Please let them in.",
@@ -346,7 +353,7 @@ export function Dashboard() {
           </div>
 
           {/* Active Job Progress Tracker */}
-          {activeJob && activeStatus && ["matched", "en_route", "arrived", "in_progress"].includes(activeStatus) && (
+          {activeJob && activeStatus && ["reviewing", "matched", "en_route", "arrived", "in_progress"].includes(activeStatus) && (
             <div
               className="mx-auto mt-10 max-w-xl rounded-2xl bg-white border border-emerald-200 shadow-xl shadow-emerald-500/10 p-6 text-left space-y-4"
               style={{ animation: "fade-in-up 0.4s ease-out both" }}
@@ -356,7 +363,7 @@ export function Dashboard() {
                   <ShieldCheck size={20} className="text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900">Pro Found!</p>
+                  <p className="font-bold text-gray-900">{activeStatus === "reviewing" ? "Provider Reviewing…" : "Pro Found!"}</p>
                   <p className="text-sm text-gray-500 capitalize">
                     {activeJob.category}&nbsp;·&nbsp;
                     <span className="text-emerald-600 font-semibold">{activeStatus!.replace("_", " ")}</span>
@@ -404,7 +411,7 @@ export function Dashboard() {
                 </p>
               )}
 
-              {(activeStatus === "matched" || activeStatus === "en_route") && (
+              {(activeStatus === "reviewing" || activeStatus === "matched" || activeStatus === "en_route") && (
                 <button
                   onClick={jobs.cancelJob}
                   disabled={jobs.loading}
@@ -426,13 +433,14 @@ export function Dashboard() {
                 await jobs.submitReview(rating, comment);
                 setReviewSubmitting(false);
                 jobs.dismissCompletedJob();
+                resetBookingUI();
               }}
-              onDismiss={jobs.dismissCompletedJob}
+              onDismiss={() => { jobs.dismissCompletedJob(); resetBookingUI(); }}
             />
           )}
 
-          {/* Booking Funnel — steps 0-3 */}
-          {!activeJob && bookingStep < 4 && (
+          {/* Booking Funnel — steps 0-4 */}
+          {!activeJob && bookingStep < 5 && (
             <div
               className="mx-auto mt-10 flex justify-center"
               style={{ animation: "fade-in-up 0.7s ease-out 0.3s both" }}
@@ -448,12 +456,13 @@ export function Dashboard() {
                 geoError={geoError}
                 onFindProviders={handleFindProviders}
                 findingProviders={findingProviders}
+                submitError={submitError}
               />
             </div>
           )}
 
-          {/* Provider Browse — step 4, shown before AND while job is searching */}
-          {bookingStep === 4 && (!activeJob || activeJob.status === "searching") && bookingData.lat && bookingData.lng && bookingData.category && (
+          {/* Provider Browse — step 5, shown before AND while job is searching */}
+          {bookingStep === 5 && (!activeJob || activeJob.status === "searching") && bookingData.lat && bookingData.lng && bookingData.category && (
             <div
               className="mx-auto mt-10 flex justify-center"
               style={{ animation: "fade-in-up 0.4s ease-out both" }}
@@ -469,7 +478,7 @@ export function Dashboard() {
                 submitError={submitError}
                 jobSearching={activeJob?.status === "searching"}
                 onRequestProvider={handleSelectProvider}
-                onBack={() => { setBookingStep(3); setSubmitError(null); }}
+                onBack={() => { setBookingStep(4); setSubmitError(null); }}
                 onCancel={handleCancelJob}
               />
             </div>

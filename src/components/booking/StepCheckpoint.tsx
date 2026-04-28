@@ -1,4 +1,4 @@
-import { CheckCircle, MapPin, FileText, Image, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle, MapPin, FileText, Image, Loader2, AlertCircle, Search } from "lucide-react";
 import type { JobCategory } from "../../hooks/useJobs";
 
 interface Props {
@@ -90,7 +90,7 @@ export function StepCheckpoint({
         </div>
       )}
 
-      {/* Confirm button */}
+      {/* Find Providers button */}
       <button
         onClick={onConfirm}
         disabled={submitting}
@@ -99,10 +99,13 @@ export function StepCheckpoint({
         {submitting ? (
           <>
             <Loader2 size={18} className="animate-spin" />
-            Submitting…
+            Finding providers…
           </>
         ) : (
-          "Confirm & Request Pro"
+          <>
+            <Search size={16} />
+            Find Providers
+          </>
         )}
       </button>
     </div>

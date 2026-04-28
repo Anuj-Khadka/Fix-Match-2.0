@@ -121,12 +121,12 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
     });
 
     if (error) {
-      // Fallback: RPC doesn't exist yet
+      // Fallback: direct update if RPC not available
       const { error: updateErr } = await supabase
         .from("jobs")
         .update({
           provider_id: userId,
-          status: "accepted",
+          status: "matched",
           updated_at: new Date().toISOString(),
         })
         .eq("id", currentAlert.job_id)
@@ -151,7 +151,7 @@ export function useJobAlerts(userId: string | undefined): UseJobAlertsReturn {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
       setCurrentAlert(null);
     } else {
-      setAcceptError(result.error ?? "Job was taken by another pro");
+      setAcceptError(result.error ?? "Job was already taken");
     }
   }, [currentAlert, userId]);
 

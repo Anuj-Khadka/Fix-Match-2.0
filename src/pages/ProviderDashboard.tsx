@@ -5,6 +5,7 @@ import { useProviderJobs } from "../hooks/useProviderJobs";
 import { useElapsedTime } from "../hooks/useElapsedTime";
 import { ActiveJobCard } from "../components/job/ActiveJobCard";
 import { RatingModal } from "../components/job/RatingModal";
+import { JobListener } from "../components/provider/JobListener";
 import { supabase } from "../lib/supabase";
 import {
   Wrench,
@@ -127,6 +128,7 @@ export function ProviderDashboard() {
   }, [user?.id, activeJob?.status]); // re-fetch when job status changes
 
   return (
+    <JobListener>
     <div className="min-h-screen bg-[#f9fafb] font-sans">
       {/* ── Top Bar ───────────────────────────────────── */}
       <nav className="border-b border-gray-200 bg-white">
@@ -333,6 +335,7 @@ export function ProviderDashboard() {
         </div>
       </main>
     </div>
+    </JobListener>
   );
 }
 

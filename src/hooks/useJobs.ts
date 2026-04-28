@@ -5,6 +5,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 export type JobCategory = "plumbing" | "electrical" | "cleaning";
 export type JobStatus =
   | "searching"
+  | "reviewing"
   | "accepted"
   | "matched"
   | "en_route"
@@ -82,7 +83,7 @@ export function useJobs(userId: string | undefined): UseJobsReturn {
         .from("provider_profiles")
         .select("business_name")
         .eq("id", pid)
-        .single();
+        .maybeSingle();
 
       // Fetch average rating
       const { data: reviews } = await supabase

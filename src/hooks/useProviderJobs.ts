@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import type { Job } from "./useJobs";
 
-const ACTIVE_STATUSES = ["matched", "accepted", "en_route", "arrived", "in_progress"];
+const ACTIVE_STATUSES = ["reviewing", "matched", "accepted", "en_route", "arrived", "in_progress"];
 
 interface UseProviderJobsReturn {
   activeJob: Job | null;

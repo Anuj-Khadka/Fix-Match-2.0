@@ -9,7 +9,8 @@ import {
   X,
   MapPin,
   FileText,
-  ImageIcon,
+  Eye,
+  ArrowLeft,
 } from "lucide-react";
 
 interface Props {
@@ -28,11 +29,11 @@ interface Props {
 
 const CATEGORY_META: Record<
   string,
-  { label: string; Icon: React.ComponentType<{ size?: number; className?: string }>; color: string }
+  { label: string; Icon: React.ComponentType<{ size?: number; className?: string }>; color: string; bg: string }
 > = {
-  plumbing: { label: "Plumbing", Icon: Wrench, color: "text-cobalt" },
-  electrical: { label: "Electrical", Icon: Zap, color: "text-yellow-500" },
-  cleaning: { label: "Cleaning", Icon: Sparkles, color: "text-emerald-600" },
+  plumbing:   { label: "Plumbing",   Icon: Wrench,    color: "text-cobalt",       bg: "bg-cobalt/10" },
+  electrical: { label: "Electrical", Icon: Zap,        color: "text-yellow-500",   bg: "bg-yellow-50" },
+  cleaning:   { label: "Cleaning",   Icon: Sparkles,   color: "text-emerald-600",  bg: "bg-emerald-50" },
 };
 
 const COUNTDOWN_SECONDS = 30;
@@ -50,22 +51,23 @@ export function JobAlertModal({
   onDecline,
   onDismiss,
 }: Props) {
+  const [phase, setPhase] = useState<"alert" | "review">("alert");
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
+
   const meta = CATEGORY_META[category] ?? {
     label: category,
     Icon: Wrench,
     color: "text-gray-600",
+    bg: "bg-gray-100",
   };
 
-  // Countdown timer
+  // Countdown only runs in alert phase
   useEffect(() => {
+    setPhase("alert");
     setSecondsLeft(COUNTDOWN_SECONDS);
     const interval = setInterval(() => {
       setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
+        if (s <= 1) { clearInterval(interval); return 0; }
         return s - 1;
       });
     }, 1000);
@@ -74,129 +76,202 @@ export function JobAlertModal({
 
   const progress = (secondsLeft / COUNTDOWN_SECONDS) * 100;
 
+  /* ── Phase 1: initial alert ── */
+  if (phase === "alert") {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div
+          className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden"
+          style={{ animation: "fade-in-up 0.3s ease-out both" }}
+        >
+          {/* Countdown bar */}
+          <div className="h-1 bg-gray-100">
+            <div
+              className="h-full bg-cobalt transition-all duration-1000 ease-linear"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {/* Dismiss */}
+          <button
+            onClick={onDismiss}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition cursor-pointer border-none z-10"
+          >
+            <X size={16} className="text-gray-500" />
+          </button>
+
+          <div className="p-6">
+            {/* Header */}
+            <div className="text-center">
+              <div className={`mx-auto w-16 h-16 rounded-2xl ${meta.bg} flex items-center justify-center mb-4`}>
+                <meta.Icon size={32} className={meta.color} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">New Job Alert!</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                <span className="font-semibold capitalize">{meta.label}</span> request nearby
+              </p>
+            </div>
+
+            {/* Quick summary */}
+            <div className="mt-4 space-y-2.5">
+              {description && (
+                <div className="flex items-start gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
+                  <FileText size={15} className="text-gray-400 mt-0.5 shrink-0" />
+                  <p className="text-sm text-gray-700 line-clamp-2">{description}</p>
+                </div>
+              )}
+              {locationLat != null && locationLng != null && (
+                <div className="flex items-center gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
+                  <MapPin size={15} className="text-cobalt shrink-0" />
+                  <span className="text-sm text-gray-700">
+                    {locationLat.toFixed(4)}, {locationLng.toFixed(4)}
+                  </span>
+                </div>
+              )}
+              {images.length > 0 && (
+                <div className="flex items-center gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
+                  <Eye size={15} className="text-gray-400 shrink-0" />
+                  <span className="text-sm text-gray-600">
+                    {images.length} photo{images.length > 1 ? "s" : ""} attached — review to see them
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Timer */}
+            <p className="mt-3 text-center text-xs text-gray-400">
+              {secondsLeft > 0 ? `${secondsLeft}s to decide` : "Time expired"}
+            </p>
+
+            {/* Actions */}
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={onDecline}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => setPhase("review")}
+                disabled={secondsLeft === 0}
+                className="flex-1 py-3 rounded-xl bg-cobalt text-white text-sm font-semibold hover:bg-cobalt-dark transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border-none"
+              >
+                <Eye size={16} />
+                Review Job
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Phase 2: review details before accepting ── */
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div
         className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden"
-        style={{ animation: "fade-in-up 0.3s ease-out both" }}
+        style={{ animation: "fade-in-up 0.25s ease-out both" }}
       >
-        {/* Countdown progress bar */}
-        <div className="h-1 bg-gray-100">
-          <div
-            className="h-full bg-cobalt transition-all duration-1000 ease-linear"
-            style={{ width: `${progress}%` }}
-          />
+        {/* Review header bar */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+          <button
+            onClick={() => setPhase("alert")}
+            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition cursor-pointer border-none shrink-0"
+          >
+            <ArrowLeft size={15} className="text-gray-500" />
+          </button>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-gray-900 capitalize">{meta.label} Job</p>
+            <p className="text-xs text-amber-600 font-medium">Review period · client is waiting</p>
+          </div>
+          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${meta.bg} shrink-0`}>
+            <meta.Icon size={18} className={meta.color} />
+          </div>
         </div>
 
-        {/* Close button */}
-        <button
-          onClick={onDismiss}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition cursor-pointer border-none z-10"
-        >
-          <X size={16} className="text-gray-500" />
-        </button>
-
-        <div className="p-6">
-          {/* Header */}
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-cobalt/10 flex items-center justify-center mb-4">
-              <meta.Icon size={32} className={meta.color} />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900">New Job Alert!</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              <span className="font-semibold capitalize">{meta.label}</span> request nearby
-            </p>
-          </div>
-
-          {/* Job details */}
-          <div className="mt-4 space-y-3">
-            {/* Description */}
-            {description && (
-              <div className="flex items-start gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
-                <FileText size={16} className="text-gray-400 mt-0.5 shrink-0" />
-                <p className="text-sm text-gray-700 line-clamp-3">{description}</p>
-              </div>
-            )}
-
-            {/* Location */}
-            {locationLat != null && locationLng != null && (
-              <div className="flex items-center gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
-                <MapPin size={16} className="text-cobalt shrink-0" />
-                <span className="text-sm text-gray-700">
-                  {locationLat.toFixed(4)}, {locationLng.toFixed(4)}
-                </span>
-              </div>
-            )}
-
-            {/* Images */}
-            {images.length > 0 && (
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Description */}
+          {description ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Description</p>
               <div className="rounded-xl bg-gray-50 px-4 py-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <ImageIcon size={16} className="text-gray-400" />
-                  <span className="text-xs font-medium text-gray-500">
-                    {images.length} photo{images.length > 1 ? "s" : ""} attached
-                  </span>
-                </div>
-                <div className="flex gap-2 overflow-x-auto">
-                  {images.slice(0, 4).map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`Job photo ${i + 1}`}
-                      className="w-16 h-16 rounded-lg object-cover shrink-0 border border-gray-200"
-                    />
-                  ))}
-                  {images.length > 4 && (
-                    <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-semibold text-gray-500">
-                        +{images.length - 4}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                <p className="text-sm text-gray-800 leading-relaxed">{description}</p>
               </div>
-            )}
-          </div>
-
-          {/* Timer */}
-          <p className="mt-3 text-center text-xs text-gray-400">
-            {secondsLeft > 0 ? `${secondsLeft}s remaining` : "Time expired"}
-          </p>
-
-          {/* Error */}
-          {acceptError && (
-            <div className="mt-4 flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2">
-              <XCircle size={16} className="shrink-0" />
-              {acceptError}
+            </div>
+          ) : (
+            <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-400 italic">
+              No description provided
             </div>
           )}
 
-          {/* Actions */}
-          <div className="mt-5 flex gap-3">
-            <button
-              onClick={onDecline}
-              className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              Decline
-            </button>
-            <button
-              onClick={onAccept}
-              disabled={accepting || secondsLeft === 0}
-              className="flex-1 py-3 rounded-xl bg-cobalt text-white text-sm font-semibold hover:bg-cobalt-dark transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border-none"
-            >
-              {accepting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Accepting...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={16} />
-                  Accept Job
-                </>
-              )}
-            </button>
-          </div>
+          {/* Location */}
+          {locationLat != null && locationLng != null && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Location</p>
+              <div className="flex items-center gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
+                <MapPin size={15} className="text-cobalt shrink-0" />
+                <span className="text-sm text-gray-700">
+                  {locationLat.toFixed(5)}, {locationLng.toFixed(5)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Photos */}
+          {images.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
+                Photos ({images.length})
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {images.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-xl border border-gray-100">
+                    <img
+                      src={url}
+                      alt={`Job photo ${i + 1}`}
+                      className="h-full w-full object-cover transition hover:scale-105"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {acceptError && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 border border-red-100">
+              <XCircle size={15} className="shrink-0" />
+              {acceptError}
+            </div>
+          )}
+        </div>
+
+        {/* Sticky action footer */}
+        <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-3">
+          <button
+            onClick={onDecline}
+            className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+          >
+            Decline
+          </button>
+          <button
+            onClick={onAccept}
+            disabled={accepting}
+            className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border-none shadow-lg shadow-emerald-600/25"
+          >
+            {accepting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Accepting...
+              </>
+            ) : (
+              <>
+                <CheckCircle size={16} />
+                Accept Job
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

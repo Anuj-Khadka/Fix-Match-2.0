@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Briefcase, FileText, Loader2, Clock, AlertCircle } from "lucide-react";
+import { Briefcase, FileText, Loader2, Clock, AlertCircle, Eye } from "lucide-react";
 import type { Job } from "../../hooks/useJobs";
 import { JobProgressStepper } from "./JobProgressStepper";
 
 const NEXT_STATUS: Record<string, { next: string; label: string; color: string }> = {
+  reviewing: { next: "matched", label: "Accept Job", color: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25" },
   matched: { next: "en_route", label: "Head to Location", color: "bg-cobalt hover:bg-cobalt-dark shadow-cobalt/25" },
   en_route: { next: "arrived", label: "Mark Arrived", color: "bg-cobalt hover:bg-cobalt-dark shadow-cobalt/25" },
   arrived: { next: "in_progress", label: "Start Service", color: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25" },
@@ -57,6 +58,31 @@ export function ActiveJobCard({ job, onAdvance, elapsed }: Props) {
           )}
         </div>
       </div>
+
+      {/* Review period notice */}
+      {job.status === "reviewing" && (
+        <div className="flex items-center gap-2.5 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
+          <Eye size={16} className="text-amber-500 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Review period</p>
+            <p className="text-xs text-amber-600 mt-0.5">The client is waiting — take your time to review the details below.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Job images */}
+      {job.images && job.images.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Photos</p>
+          <div className="grid grid-cols-3 gap-2">
+            {job.images.map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-xl border border-gray-100">
+                <img src={url} alt={`Job photo ${i + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Progress stepper */}
       <JobProgressStepper currentStatus={job.status} variant="provider" />
