@@ -12,6 +12,7 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminSetup } from "./pages/AdminSetup";
 import { NotFound } from "./pages/NotFound";
 import { JobListener } from "./components/provider/JobListener";
+import { ProviderCRM } from "./pages/ProviderCRM";
 
 
 /** Picks the right dashboard based on the user's role */
@@ -64,6 +65,15 @@ function AppRoutes() {
             requireApprovedProvider
           >
             <RoleDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/crm"
+        element={
+          <ProtectedRoute allowedRoles={["provider"]} requireApprovedProvider>
+            <ProviderCRM />
           </ProtectedRoute>
         }
       />

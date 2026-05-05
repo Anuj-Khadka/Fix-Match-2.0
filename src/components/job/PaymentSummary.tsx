@@ -10,7 +10,7 @@ interface Props {
   completedAt: string | null;
   baseRate: number | null;
   providerName: string | null;
-  onConfirm: (tipAmount: number) => void;
+  onConfirm: (tipAmount: number, total: number) => void;
 }
 
 function formatDuration(ms: number): string {
@@ -208,11 +208,11 @@ export function PaymentSummary({ startedAt, completedAt, baseRate, providerName,
 
         {/* Confirm button */}
         <button
-          onClick={() => onConfirm(tipAmount)}
+          onClick={() => onConfirm(tipAmount, total)}
           disabled={tipPreset === "custom" && customTip === ""}
           className="w-full py-3.5 rounded-2xl bg-cobalt text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-cobalt-dark transition disabled:opacity-50 cursor-pointer border-none shadow-lg shadow-cobalt/20"
         >
-          {tipAmount > 0 ? `Confirm & Proceed · ${fmt(total)}` : "Proceed to Review"}
+          Proceed to Payment · {fmt(total)}
           <ChevronRight size={16} />
         </button>
       </div>

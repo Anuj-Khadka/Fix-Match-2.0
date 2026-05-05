@@ -24,6 +24,9 @@ import {
   Calendar,
   ArrowLeft,
   Briefcase,
+  Users,
+  DollarSign,
+  X,
 } from "lucide-react";
 
 export function ProviderDashboard() {
@@ -58,6 +61,27 @@ export function ProviderDashboard() {
   const [isOnline, setIsOnline] = useState(false);
   const [onlineLoading, setOnlineLoading] = useState(false);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
+
+  // Payment notification
+  const [paymentNotice, setPaymentNotice] = useState<{
+    amount: number;
+    tip: number;
+    category: string;
+    transaction_ref: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const ch = supabase
+      .channel(`payment_notice:${user.id}`)
+      .on("broadcast", { event: "payment_received" }, ({ payload }) => {
+        setPaymentNotice(payload as { amount: number; tip: number; category: string; transaction_ref: string });
+        // Auto-dismiss after 10 seconds
+        setTimeout(() => setPaymentNotice(null), 10000);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
 
   // Load current online status on mount
   useEffect(() => {
@@ -170,17 +194,65 @@ export function ProviderDashboard() {
   return (
     <JobListener>
     <div className="min-h-screen bg-[#f9fafb] font-sans">
+
+      {/* ── Payment received toast ────────────────────── */}
+      {paymentNotice && (
+        <div
+          className="fixed top-5 right-5 z-50 flex items-start gap-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-2xl shadow-emerald-500/10 max-w-sm"
+          style={{ animation: "fade-in-up 0.35s ease-out both" }}
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
+            <DollarSign size={22} className="text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900">Payment received!</p>
+            <p className="mt-0.5 text-sm text-gray-600">
+              {paymentNotice.amount.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+              {paymentNotice.tip > 0 && (
+                <span className="text-emerald-600 font-medium">
+                  {" "}(incl. {paymentNotice.tip.toLocaleString("en-US", { style: "currency", currency: "USD" })} tip)
+                </span>
+              )}
+              {" "}· <span className="capitalize">{paymentNotice.category}</span>
+            </p>
+            <p className="mt-1 font-mono text-xs text-gray-400">{paymentNotice.transaction_ref}</p>
+          </div>
+          <button
+            onClick={() => setPaymentNotice(null)}
+            className="shrink-0 text-gray-300 hover:text-gray-500 transition cursor-pointer bg-transparent border-none"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* ── Top Bar ───────────────────────────────────── */}
       <nav className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link to="/" className="text-xl font-extrabold tracking-tight text-cobalt no-underline">
-            fix<span className="text-gray-900">match</span>
-          </Link>
+          <div className="flex items-center gap-5">
+            <Link to="/" className="text-xl font-extrabold tracking-tight text-provider no-underline">
+              fix<span className="text-gray-900">match</span>
+            </Link>
+            <div className="hidden md:flex items-center gap-0.5">
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-provider bg-provider/10 transition no-underline"
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/crm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-provider hover:bg-provider/5 transition no-underline"
+              >
+                <Users size={14} /> Clients
+              </Link>
+            </div>
+          </div>
           <div className="flex items-center gap-4">
             <span className="hidden text-sm text-gray-500 sm:inline">
               {user?.email}
             </span>
-            <span className="rounded-full bg-cobalt/10 px-3 py-1 text-xs font-semibold text-cobalt capitalize">
+            <span className="rounded-full bg-provider/10 px-3 py-1 text-xs font-semibold text-provider capitalize">
               {role}
             </span>
             <button
@@ -196,7 +268,7 @@ export function ProviderDashboard() {
       {/* ── Main Content ──────────────────────────────── */}
       <main className="mx-auto max-w-5xl px-6 py-10">
         {/* Welcome Banner */}
-        <div className="rounded-2xl bg-gradient-to-r from-cobalt to-orange-600 p-8 text-white shadow-lg shadow-cobalt/20">
+        <div className="rounded-2xl bg-gradient-to-r from-provider to-teal-600 p-8 text-white shadow-lg shadow-provider/20">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
               <Star size={24} className="text-white" />
@@ -205,7 +277,7 @@ export function ProviderDashboard() {
               <h1 className="text-2xl font-bold">
                 Welcome to Fixmatch
               </h1>
-              <p className="mt-1 text-orange-100">
+              <p className="mt-1 text-teal-100">
                 Your service is valued here.
               </p>
             </div>
@@ -267,7 +339,7 @@ export function ProviderDashboard() {
               className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer border-none disabled:opacity-60 ${
                 isOnline
                   ? "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-                  : "bg-cobalt text-white hover:bg-cobalt-dark shadow-sm shadow-cobalt/30"
+                  : "bg-provider text-white hover:bg-provider-dark shadow-sm shadow-provider/30"
               }`}
             >
               {onlineLoading
@@ -370,7 +442,7 @@ export function ProviderDashboard() {
               Scheduled
               {scheduledJobs.length > 0 && (
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
-                  jobTab === "scheduled" ? "bg-cobalt text-white" : "bg-cobalt/20 text-cobalt"
+                  jobTab === "scheduled" ? "bg-provider text-white" : "bg-provider/20 text-provider"
                 }`}>
                   {scheduledJobs.length}
                 </span>
@@ -427,7 +499,7 @@ export function ProviderDashboard() {
                 <div className="mt-4">
                   <button
                     onClick={() => setSelectedScheduledJob(null)}
-                    className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-cobalt transition cursor-pointer bg-transparent border-none mb-4"
+                    className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-provider transition cursor-pointer bg-transparent border-none mb-4"
                   >
                     <ArrowLeft size={15} /> Back to scheduled
                   </button>
@@ -451,16 +523,16 @@ export function ProviderDashboard() {
                     <button
                       key={job.id}
                       onClick={() => setSelectedScheduledJob(job)}
-                      className="w-full text-left rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:border-cobalt/30 hover:shadow-md transition cursor-pointer"
+                      className="w-full text-left rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:border-provider/30 hover:shadow-md transition cursor-pointer"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cobalt/10 shrink-0">
-                          <Briefcase size={20} className="text-cobalt" />
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-provider/10 shrink-0">
+                          <Briefcase size={20} className="text-provider" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-bold text-gray-900 capitalize">{job.category}</p>
-                            <span className="rounded-full bg-cobalt/10 px-2 py-0.5 text-xs font-semibold text-cobalt">
+                            <span className="rounded-full bg-provider/10 px-2 py-0.5 text-xs font-semibold text-provider">
                               Scheduled
                             </span>
                           </div>
@@ -470,9 +542,9 @@ export function ProviderDashboard() {
                         </div>
                       </div>
                       {job.scheduled_at && (
-                        <div className="mt-3 flex items-center gap-2 rounded-xl bg-cobalt/5 px-3 py-2">
-                          <Calendar size={14} className="text-cobalt shrink-0" />
-                          <span className="text-sm font-semibold text-cobalt">
+                        <div className="mt-3 flex items-center gap-2 rounded-xl bg-provider/5 px-3 py-2">
+                          <Calendar size={14} className="text-provider shrink-0" />
+                          <span className="text-sm font-semibold text-provider">
                             {new Date(job.scheduled_at).toLocaleString(undefined, {
                               weekday: "short", month: "short", day: "numeric",
                               hour: "numeric", minute: "2-digit",
@@ -501,8 +573,8 @@ const CATEGORIES = [
     title: "Plumbing",
     subtitle: "Pipes, faucets, drains",
     icon: Wrench,
-    bg: "bg-orange-50",
-    iconColor: "text-cobalt",
+    bg: "bg-teal-50",
+    iconColor: "text-provider",
   },
   {
     title: "Electrical",

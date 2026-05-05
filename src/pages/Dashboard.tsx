@@ -6,7 +6,7 @@ import {
   Sparkles,
   MoreHorizontal,
   LogOut,
-  Wallet,
+  History,
   Settings,
   Loader2,
   ArrowRight,
@@ -14,11 +14,18 @@ import {
   ShieldCheck,
   CreditCard,
   Search,
+  Star,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useJobs, type JobCategory } from "../hooks/useJobs";
 import { useElapsedTime } from "../hooks/useElapsedTime";
+import { useOrderHistory } from "../hooks/useOrderHistory";
 import { JobProgressStepper } from "../components/job/JobProgressStepper";
 import { RatingModal } from "../components/job/RatingModal";
 import { supabase } from "../lib/supabase";
@@ -26,6 +33,7 @@ import { BookingPanel, type BookingData } from "../components/booking/BookingPan
 import { StepProviderSelect, type NearbyProvider } from "../components/booking/StepProviderSelect";
 import { PaymentSummary } from "../components/job/PaymentSummary";
 import { ChatBox } from "../components/job/ChatBox";
+import { PaymentModal } from "../components/job/PaymentModal";
 import { useChat } from "../hooks/useChat";
 
 /* ------------------------------------------------------------------ */
@@ -54,8 +62,11 @@ export function Dashboard() {
   const { user } = useAuth();
   const { requestPosition, loading: geoLoading, error: geoError } = useGeolocation();
   const jobs = useJobs(user?.id);
+  const { orders, loading: ordersLoading } = useOrderHistory(user?.id);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showAllOrders, setShowAllOrders] = useState(false);
+  const historyRef = useRef<HTMLElement>(null);
   const [bookingStep, setBookingStep] = useState(0);
   const [bookingData, setBookingData] = useState<BookingData>({
     category: null,
@@ -220,6 +231,7 @@ export function Dashboard() {
   const userInitial = (user?.email?.[0] ?? "U").toUpperCase();
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [paymentModal, setPaymentModal] = useState<{ tip: number; total: number } | null>(null);
   const activeJob = jobs.activeJob;
   const activeStatus = activeJob?.status;
   const elapsed = useElapsedTime(activeJob?.started_at ?? null);
@@ -307,17 +319,27 @@ export function Dashboard() {
                     <p className="text-xs text-gray-400 truncate mt-0.5">{user?.email}</p>
                   </div>
                   <div className="py-1.5">
-                    {[{ Icon: Wallet, label: "Wallet" }, { Icon: Settings, label: "Settings" }].map(
-                      ({ Icon, label }) => (
-                        <button
-                          key={label}
-                          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-slate-50 cursor-pointer border-none bg-transparent text-left transition"
-                        >
-                          <Icon size={15} className="text-gray-400" />
-                          {label}
-                        </button>
-                      ),
-                    )}
+                    <button
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        setTimeout(() => historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-slate-50 cursor-pointer border-none bg-transparent text-left transition"
+                    >
+                      <History size={15} className="text-gray-400" />
+                      Order History
+                      {orders.length > 0 && (
+                        <span className="ml-auto rounded-full bg-cobalt/10 px-2 py-0.5 text-xs font-semibold text-cobalt">
+                          {orders.length}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-slate-50 cursor-pointer border-none bg-transparent text-left transition"
+                    >
+                      <Settings size={15} className="text-gray-400" />
+                      Settings
+                    </button>
                   </div>
                   <div className="border-t border-gray-100 py-1.5">
                     <button
@@ -459,7 +481,7 @@ export function Dashboard() {
               completedAt={activeJob.completed_at}
               baseRate={providerInfo?.base_rate ?? null}
               providerName={providerInfo?.full_name ?? null}
-              onConfirm={() => setPaymentDone(true)}
+              onConfirm={(tip, total) => setPaymentModal({ tip, total })}
             />
           )}
 
@@ -565,6 +587,141 @@ export function Dashboard() {
       </section>
 
       {/* ════════════════════════════════════════════════════════════
+          ORDER HISTORY
+      ════════════════════════════════════════════════════════════ */}
+      <section ref={historyRef} className="bg-[#fafaf8] py-16 md:py-20 scroll-mt-20">
+        <div className="mx-auto max-w-7xl px-6">
+
+          {/* Header */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cobalt/10">
+                <History size={20} className="text-cobalt" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Order History</h2>
+                {!ordersLoading && (
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {orders.length === 0
+                      ? "Your completed and past jobs will appear here"
+                      : `${orders.length} order${orders.length !== 1 ? "s" : ""} · ${orders.filter(o => o.status === "completed").length} completed`
+                    }
+                  </p>
+                )}
+              </div>
+            </div>
+            {orders.length > 5 && (
+              <button
+                onClick={() => setShowAllOrders((v) => !v)}
+                className="flex items-center gap-1.5 text-sm font-semibold text-cobalt hover:opacity-75 transition cursor-pointer border-none bg-transparent"
+              >
+                {showAllOrders ? <><ChevronUp size={16} /> Show less</> : <><ChevronDown size={16} /> View all {orders.length}</>}
+              </button>
+            )}
+          </div>
+
+          {/* Loading skeleton */}
+          {ordersLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-20 rounded-2xl bg-gray-100 animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!ordersLoading && orders.length === 0 && (
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white py-14 text-center">
+              <History size={36} className="mx-auto text-gray-200" />
+              <p className="mt-4 font-semibold text-gray-300">No orders yet</p>
+              <p className="mt-1 text-sm text-gray-400">
+                Once you book a service, your orders will appear here.
+              </p>
+            </div>
+          )}
+
+          {/* Order cards */}
+          {!ordersLoading && orders.length > 0 && (
+            <div className="space-y-3">
+              {(showAllOrders ? orders : orders.slice(0, 5)).map((order) => {
+                const duration = formatDuration(order.started_at, order.completed_at);
+                const emoji = CATEGORY_EMOJI[order.category] ?? "🔧";
+                const { label: statusLabel, cls: statusCls, Icon: StatusIcon } = STATUS_META[order.status] ?? STATUS_META.cancelled;
+
+                return (
+                  <div
+                    key={order.id}
+                    className="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                  >
+                    {/* Category icon */}
+                    <div className="h-12 w-12 shrink-0 rounded-xl bg-cobalt/8 flex items-center justify-center text-2xl leading-none">
+                      {emoji}
+                    </div>
+
+                    {/* Main info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-gray-900 capitalize">{order.category}</p>
+                        <span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls}`}>
+                          <StatusIcon size={11} /> {statusLabel}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-400">
+                        <span>{new Date(order.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                        {order.provider_name && (
+                          <span>with <span className="font-medium text-gray-600">{order.provider_name}</span>
+                            {order.provider_business && ` · ${order.provider_business}`}
+                          </span>
+                        )}
+                        {duration && <span className="flex items-center gap-1"><Clock size={11} /> {duration}</span>}
+                      </div>
+                      {order.description && (
+                        <p className="mt-1 text-xs text-gray-400 truncate">{order.description}</p>
+                      )}
+                    </div>
+
+                    {/* Right: paid badge + rating + rebook */}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      {order.payment_amount !== null && (
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          Paid {order.payment_amount.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                        </span>
+                      )}
+                      {order.review_rating !== null && (
+                        <div className="flex items-center gap-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              size={13}
+                              fill="currentColor"
+                              className={i < order.review_rating! ? "text-amber-400" : "text-gray-200"}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {order.status === "completed" && (
+                        <button
+                          onClick={() => {
+                            setBookingData((d) => ({ ...d, category: order.category }));
+                            setBookingStep(2);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          className="rounded-xl bg-cobalt/10 px-3 py-1.5 text-xs font-semibold text-cobalt hover:bg-cobalt/20 transition cursor-pointer border-none"
+                        >
+                          Book again
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
           BROWSE SERVICES  — photo card grid
       ════════════════════════════════════════════════════════════ */}
       <section id="services" className="bg-white py-20 md:py-28">
@@ -662,6 +819,23 @@ export function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          PAYMENT MODAL (portal-style overlay)
+      ════════════════════════════════════════════════════════════ */}
+      {paymentModal && activeJob && (
+        <PaymentModal
+          total={paymentModal.total}
+          tip={paymentModal.tip}
+          jobId={activeJob.id}
+          clientId={user!.id}
+          providerId={providerInfo?.id ?? null}
+          jobCategory={activeJob.category}
+          providerName={providerInfo?.full_name ?? null}
+          onSuccess={() => { setPaymentModal(null); setPaymentDone(true); }}
+          onClose={() => setPaymentModal(null)}
+        />
+      )}
 
       {/* ════════════════════════════════════════════════════════════
           HOW IT WORKS
@@ -774,3 +948,27 @@ const HOW_IT_WORKS = [
   { title: "30-Second Match",  description: "We ping the closest verified pro. If they can't take it, the next one gets it.", Icon: Clock   },
   { title: "Secure Pay",       description: "Only pay when the job is marked complete and you're satisfied.",                 Icon: CreditCard },
 ];
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  plumbing: "🔧",
+  electrical: "⚡",
+  cleaning: "✨",
+};
+
+const STATUS_META: Record<string, { label: string; cls: string; Icon: React.ComponentType<{ size?: number }> }> = {
+  completed: { label: "Completed",  cls: "bg-emerald-100 text-emerald-700", Icon: CheckCircle },
+  cancelled: { label: "Cancelled",  cls: "bg-red-100 text-red-600",         Icon: XCircle },
+  expired:   { label: "Expired",    cls: "bg-gray-100 text-gray-500",       Icon: AlertCircle },
+};
+
+function formatDuration(startedAt: string | null, completedAt: string | null): string | null {
+  if (!startedAt || !completedAt) return null;
+  const mins = Math.round(
+    (new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 60000
+  );
+  if (mins < 1) return null;
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
