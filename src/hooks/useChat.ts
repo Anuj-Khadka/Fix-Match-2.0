@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 
 export interface ChatMessage {
@@ -12,40 +12,44 @@ export interface ChatMessage {
 interface UseChatReturn {
   messages: ChatMessage[];
   sending: boolean;
-  isOtherTyping: boolean;
   sendMessage: (content: string) => Promise<void>;
-  sendTyping: () => void;
 }
 
 export function useChat(jobId: string | undefined, userId: string | undefined): UseChatReturn {
-  const [messages, setMessages]       = useState<ChatMessage[]>([]);
-  const [sending, setSending]         = useState(false);
-  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sending, setSending] = useState(false);
 
-  const channelRef    = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const typingTimeout = useRef<ReturnType<typeof setTimeout>>();
-
-  // ── Fetch existing messages ───────────────────────────────────────────────
+  // Fetch existing messages when job changes
   useEffect(() => {
-    if (!jobId) { setMessages([]); return; }
+    if (!jobId) {
+      setMessages([]);
+      return;
+    }
+
     supabase
       .from("messages")
       .select("id, job_id, sender_id, content, created_at")
       .eq("job_id", jobId)
       .order("created_at", { ascending: true })
-      .then(({ data }) => { if (data) setMessages(data as ChatMessage[]); });
+      .then(({ data }) => {
+        if (data) setMessages(data as ChatMessage[]);
+      });
   }, [jobId]);
 
-  // ── Realtime: new messages (postgres_changes) + typing (broadcast) ────────
+  // Realtime subscription for new messages
   useEffect(() => {
-    if (!jobId || !userId) return;
+    if (!jobId) return;
 
     const channel = supabase
-      .channel(`chat:${jobId}`)
-      // New messages via DB change
+      .channel(`messages:${jobId}`)
       .on(
         "postgres_changes" as const,
-        { event: "INSERT", schema: "public", table: "messages", filter: `job_id=eq.${jobId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `job_id=eq.${jobId}`,
+        },
         (payload) => {
           const incoming = payload.new as ChatMessage;
           setMessages((prev) => {
@@ -54,65 +58,46 @@ export function useChat(jobId: string | undefined, userId: string | undefined): 
           });
         }
       )
-      // Typing indicator via broadcast (no DB write — fires immediately)
-      .on("broadcast", { event: "typing" }, ({ payload }) => {
-        if (payload?.user_id === userId) return; // ignore own echo
-        setIsOtherTyping(true);
-        clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => setIsOtherTyping(false), 3000);
-      })
       .subscribe();
-
-    channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
-      channelRef.current = null;
-      clearTimeout(typingTimeout.current);
     };
-  }, [jobId, userId]);
+  }, [jobId]);
 
-  // ── Broadcast typing event (called on every keystroke) ───────────────────
-  const sendTyping = useCallback(() => {
-    if (!userId || !channelRef.current) return;
-    channelRef.current.send({
-      type:    "broadcast",
-      event:   "typing",
-      payload: { user_id: userId },
-    });
-  }, [userId]);
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!jobId || !userId || !content.trim()) return;
+      setSending(true);
 
-  // ── Send a message with optimistic update ────────────────────────────────
-  const sendMessage = useCallback(async (content: string) => {
-    if (!jobId || !userId || !content.trim()) return;
-    setSending(true);
+      const tempId = `temp-${Date.now()}`;
+      const optimistic: ChatMessage = {
+        id: tempId,
+        job_id: jobId,
+        sender_id: userId,
+        content: content.trim(),
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, optimistic]);
 
-    const tempId = `temp-${Date.now()}`;
-    const optimistic: ChatMessage = {
-      id:         tempId,
-      job_id:     jobId,
-      sender_id:  userId,
-      content:    content.trim(),
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, optimistic]);
+      const { data, error } = await supabase
+        .from("messages")
+        .insert({ job_id: jobId, sender_id: userId, content: content.trim() })
+        .select("id, job_id, sender_id, content, created_at")
+        .single();
 
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({ job_id: jobId, sender_id: userId, content: content.trim() })
-      .select("id, job_id, sender_id, content, created_at")
-      .single();
+      setSending(false);
 
-    setSending(false);
+      if (!error && data) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? (data as ChatMessage) : m))
+        );
+      } else {
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      }
+    },
+    [jobId, userId]
+  );
 
-    if (!error && data) {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? (data as ChatMessage) : m))
-      );
-    } else {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-    }
-  }, [jobId, userId]);
-
-  return { messages, sending, isOtherTyping, sendMessage, sendTyping };
+  return { messages, sending, sendMessage };
 }
