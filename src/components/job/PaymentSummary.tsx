@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { DollarSign, Clock, Percent, ChevronRight, AlertCircle } from "lucide-react";
 
-const COMMISSION_RATE = 0.12;
 const TAX_RATE = 0.0665;
 const TIP_PRESETS = [20, 22, 25] as const;
 
@@ -38,12 +37,12 @@ export function PaymentSummary({ startedAt, completedAt, baseRate, providerName,
   const durationHours = durationMs != null ? durationMs / 3600000 : null;
 
   // Costs (all zero if rate/time missing)
+  // Commission is deducted from the provider's payout — clients are not charged it
   const rate = baseRate ?? 0;
   const hours = durationHours ?? 0;
   const serviceCost = rate * hours;
-  const commission = serviceCost * COMMISSION_RATE;
   const tax = serviceCost * TAX_RATE;
-  const subtotal = serviceCost + commission + tax;
+  const subtotal = serviceCost + tax;
 
   // Tip
   const tipPercent =
@@ -118,11 +117,6 @@ export function PaymentSummary({ startedAt, completedAt, baseRate, providerName,
                 : "Service"
             }
             value={fmt(serviceCost)}
-          />
-          <Row
-            label="Platform fee (12%)"
-            value={fmt(commission)}
-            sub
           />
           <Row
             label="Tax (6.625%)"

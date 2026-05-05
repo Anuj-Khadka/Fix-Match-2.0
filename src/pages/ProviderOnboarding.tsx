@@ -11,8 +11,7 @@ import {
   ChevronLeft,
   Wrench,
   Zap,
-  Wind,
-  Hammer,
+
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
@@ -57,8 +56,6 @@ const STEPS = [
 const CATEGORIES = [
   { value: "plumbing", label: "Plumbing", icon: Wrench },
   { value: "electrical", label: "Electrical", icon: Zap },
-  { value: "hvac", label: "HVAC", icon: Wind },
-  { value: "handyman", label: "Handyman", icon: Hammer },
 ];
 
 const inputClass =

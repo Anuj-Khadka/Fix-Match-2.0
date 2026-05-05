@@ -3,8 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Wrench,
   Zap,
-  Sparkles,
-  Hammer,
+
   Search,
   Clock,
   ShieldCheck,
@@ -518,20 +517,6 @@ const SERVICES = [
     icon: Zap,
     bg: "bg-amber-50",
     iconColor: "text-amber-500",
-  },
-  {
-    title: "Cleaning",
-    description: "Deep cleans, move-out scrubs, and recurring schedules that shine.",
-    icon: Sparkles,
-    bg: "bg-emerald-50",
-    iconColor: "text-emerald-500",
-  },
-  {
-    title: "Handyman",
-    description: "Furniture assembly, drywall patches, odd jobs — no task too small.",
-    icon: Hammer,
-    bg: "bg-purple-50",
-    iconColor: "text-purple-500",
   },
 ];
 

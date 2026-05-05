@@ -48,10 +48,8 @@ const CATEGORIES: {
   color: string;
   bg: string;
 }[] = [
-  { value: "plumbing",    label: "Plumbing",   desc: "Pipes & fixtures",  Icon: Wrench,        color: "text-cobalt",     bg: "bg-orange-50" },
-  { value: "electrical",  label: "Electrical", desc: "Wiring & panels",   Icon: Zap,           color: "text-yellow-500", bg: "bg-yellow-50" },
-  { value: "cleaning",    label: "Cleaning",   desc: "Home & office",     Icon: Sparkles,      color: "text-emerald-600",bg: "bg-emerald-50"},
-  { value: "more",        label: "More",       desc: "Coming soon",       Icon: MoreHorizontal,color: "text-gray-400",   bg: "bg-gray-100"  },
+  { value: "plumbing",    label: "Plumbing",   desc: "Pipes & fixtures",  Icon: Wrench, color: "text-cobalt",     bg: "bg-orange-50" },
+  { value: "electrical",  label: "Electrical", desc: "Wiring & panels",   Icon: Zap,    color: "text-yellow-500", bg: "bg-yellow-50" },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -909,38 +907,6 @@ const PHOTO_SERVICES: {
     image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80",
     badge: null,
   },
-  {
-    title: "Home Cleaning",
-    value: "cleaning",
-    bookable: true,
-    featured: true,
-    image: "https://images.unsplash.com/photo-1527515637462-cff94ebb84ce?auto=format&fit=crop&w=600&q=80",
-    badge: { price: "$25/hr", rating: "4.9 (12K+)" },
-  },
-  {
-    title: "Handyman & Repairs",
-    value: "more",
-    bookable: false,
-    featured: false,
-    image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=600&q=80",
-    badge: null,
-  },
-  {
-    title: "HVAC & Heating",
-    value: "more",
-    bookable: false,
-    featured: false,
-    image: "https://images.unsplash.com/photo-1585771724684-38269d6639fd?auto=format&fit=crop&w=600&q=80",
-    badge: null,
-  },
-  {
-    title: "Appliance Installation",
-    value: "more",
-    bookable: false,
-    featured: false,
-    image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=600&q=80",
-    badge: null,
-  },
 ];
 
 const HOW_IT_WORKS = [
@@ -952,7 +918,6 @@ const HOW_IT_WORKS = [
 const CATEGORY_EMOJI: Record<string, string> = {
   plumbing: "🔧",
   electrical: "⚡",
-  cleaning: "✨",
 };
 
 const STATUS_META: Record<string, { label: string; cls: string; Icon: React.ComponentType<{ size?: number }> }> = {
