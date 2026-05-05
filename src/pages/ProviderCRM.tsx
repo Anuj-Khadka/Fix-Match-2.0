@@ -40,7 +40,7 @@ export function ProviderCRM() {
   const [customTag, setCustomTag]   = useState("");
   const [notesVal, setNotesVal]     = useState("");
   const [notesSynced, setNotesSynced] = useState(true);
-  const noteTimer = useRef<ReturnType<typeof setTimeout>>();
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const selected       = clients.find((c) => c.id === selectedId) ?? null;
   const selectedJobs   = selectedId ? (jobs[selectedId]    ?? []) : [];

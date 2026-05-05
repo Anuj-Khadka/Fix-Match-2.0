@@ -198,7 +198,7 @@ export function PaymentSummary({ startedAt, completedAt, baseRate, providerName,
 
           {tipPreset === null && (
             <button
-              onClick={() => onConfirm(0)}
+              onClick={() => onConfirm(0, subtotal)}
               className="mt-2 text-xs text-gray-400 hover:text-gray-600 transition cursor-pointer bg-transparent border-none underline underline-offset-2"
             >
               Skip tip
