@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
-export type JobCategory = "plumbing" | "electrical" | "cleaning";
+export type JobCategory = "plumbing" | "electrical";
 export type JobStatus =
   | "searching"
   | "reviewing"

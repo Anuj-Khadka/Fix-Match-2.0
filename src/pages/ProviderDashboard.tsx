@@ -583,11 +583,4 @@ const CATEGORIES = [
     bg: "bg-amber-50",
     iconColor: "text-amber-500",
   },
-  {
-    title: "Cleaning",
-    subtitle: "Deep cleans, recurring",
-    icon: Sparkles,
-    bg: "bg-emerald-50",
-    iconColor: "text-emerald-500",
-  },
 ];

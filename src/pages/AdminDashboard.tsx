@@ -738,7 +738,6 @@ function JobsTab() {
             <option value="all">All Categories</option>
             <option value="plumbing">Plumbing</option>
             <option value="electrical">Electrical</option>
-            <option value="cleaning">Cleaning</option>
           </select>
         </div>
       </div>

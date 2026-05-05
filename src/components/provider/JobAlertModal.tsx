@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Wrench,
   Zap,
-  Sparkles,
   Loader2,
   CheckCircle,
   XCircle,
@@ -35,9 +34,8 @@ const CATEGORY_META: Record<
   string,
   { label: string; Icon: React.ComponentType<{ size?: number; className?: string }>; color: string; bg: string }
 > = {
-  plumbing:   { label: "Plumbing",   Icon: Wrench,    color: "text-cobalt",       bg: "bg-cobalt/10" },
-  electrical: { label: "Electrical", Icon: Zap,        color: "text-yellow-500",   bg: "bg-yellow-50" },
-  cleaning:   { label: "Cleaning",   Icon: Sparkles,   color: "text-emerald-600",  bg: "bg-emerald-50" },
+  plumbing:   { label: "Plumbing",   Icon: Wrench, color: "text-cobalt",     bg: "bg-cobalt/10" },
+  electrical: { label: "Electrical", Icon: Zap,    color: "text-yellow-500", bg: "bg-yellow-50" },
 };
 
 const COUNTDOWN_SECONDS = 30;
